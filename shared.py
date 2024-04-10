@@ -1,0 +1,196 @@
+import numpy as np
+from scipy.interpolate import splprep, splev
+from scipy.spatial.distance import cdist
+from scipy.linalg import norm
+from random import random
+from copy import deepcopy
+import pickle as pkl
+
+norm
+
+# Big params
+SIZE_X = 110
+SIZE_Y = 200
+SIZE_Z = 200
+
+PT_SPACING = 6 # distance from one point to the next
+PT_DROP = 4 # target z drop per pt
+
+
+BOUNDING_BOX = np.array([SIZE_X, SIZE_Y, SIZE_Z])
+POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP))
+
+def getAng(pt1, pt2): return(np.arctan2(pt2[1] - pt1[1], pt2[0] - pt1[0]))
+
+def angDiff(a1, a2):
+	a = a2 - a1
+	if a > np.pi: a -= 2*np.pi
+	if a < -np.pi: a += 2*np.pi
+	return a
+
+# Generate random initial path
+def randomPath(ptCnt, box):
+	path = np.zeros((3, ptCnt), dtype=np.double)
+	path[:2] = np.random.random(path[:2].shape)
+	path[0] *= box[0]
+	path[1] *= box[1]
+	path[2] = np.arange(0, -box[2], -box[2]/ptCnt)
+	
+	return(path)
+
+
+# Pull towards bounding box
+def pushTowardsBoundingBox(pts, box, margin, forcePerDist, axCount = 2):
+	outForces = np.zeros_like(pts)
+	zeros = np.zeros_like(pts[0])
+	
+	for ax in range(axCount):
+		outForces[ax] += np.max([margin - pts[ax], zeros])
+		outForces[ax] += np.min([(box[ax]-margin) - pts[ax], zeros])
+
+	outForces *= forcePerDist
+	return(outForces)
+
+# Pull towards Z position
+def pullTowardsTargetHeights(pts, zTargetPositions, forcePerDist, maxForce=5):
+	outForces = np.zeros_like(pts)
+	outForces[2] = forcePerDist * (zTargetPositions - pts[2])
+	outForces[2] = np.clip(outForces[2], -maxForce, maxForce)
+	return outForces
+
+# Shorthand for magnitude of vector
+def magnitude(vect):
+	if len(vect.shape) == 2:
+		return(np.sqrt(np.sum(pow(vect,2), axis=0)))
+	else:
+		return(np.sqrt(np.sum(pow(vect,2))))
+
+# Get distance betweeen each pair of points
+def getPathDists(path):
+	return magnitude(path[:, 1:] - path[:, :-1])
+
+# Normalize distances between points
+def normalizePathDists(path, targDist, forcePerDist):
+	pathDiffs = path[:, :-1] - path[:, 1:]
+	pathDists = magnitude(pathDiffs)
+	pathNorms = pathDiffs / pathDists
+
+	# np.linalg.norm()
+	forceMags = forcePerDist * (targDist - pathDists)
+
+	# forceMags = np.clip(forceMags, -forcePerDist/2, forcePerDist/2)
+	# forceMags = np.max([forceMags, np.zeros_like(forceMags)-10], axis=0)
+
+	outForces = np.zeros_like(path)
+	outForces[:, :-1] += forceMags * pathNorms
+	outForces[:, 1:] += forceMags * (-pathNorms)
+
+	# print(forceMags)
+	return outForces
+
+# Repel away from paths
+# UNTESTED
+def repelPoints(pts, repelPts, peakForce, cutOffDist):
+	outForces = np.zeros_like(pts)
+	for ptIdx in range(len(pts)):
+		fooPt = pts[:, ptIdx]
+		ptDiffs = repelPts - fooPt[:, None] # May not work
+		ptDists = magnitude(ptDiffs)
+		ptForceMags = (peakForce/cutOffDist) * np.max([cutOffDist - ptDists, np.zeros_like(pts)[0]])
+
+		outForces[ptIdx] = np.sum(ptForceMags * (ptDiffs / ptDists), axis=0)
+
+	return outForces
+
+# Repel away from own path
+def repelPathFromSelf(path, dropAdjacentPointCnt, peakForce, cutOffDist):
+	outForces = np.zeros_like(path)
+	for ptIdx in range(path.shape[1]):
+		fooPt = path[:, ptIdx]
+		pathSubset = path[:, ptIdx+dropAdjacentPointCnt+1:]
+		if ptIdx > dropAdjacentPointCnt: 
+			pathSubset = np.concatenate([
+				path[:, :ptIdx-dropAdjacentPointCnt],
+				pathSubset,
+			], axis=1)
+
+		ptDiffs = pathSubset - fooPt[:, None] # May not work
+		ptDists = magnitude(ptDiffs)
+		ptForceMags = (peakForce/cutOffDist) * np.max([cutOffDist - ptDists, np.zeros_like(ptDists)], axis=0)
+
+		outForces[:, ptIdx] = np.sum(ptForceMags * (ptDiffs / ptDists), axis=1) 
+
+	return outForces
+
+# Limit path angle
+def correctPathAngle(path, minAng, maxAng, forcePerRad, flatten=True):
+	if flatten:
+		path = deepcopy(path)
+		path[2] = 0
+
+	# Calculate vectors and normals to preceding and succeeding point
+	pathDiffs = path[:, :-1] - path[:, 1:]
+	nextPtVect = pathDiffs[:, 1:]
+	prevPtVect = -pathDiffs[:, :-1]
+
+	prevNorm = prevPtVect/magnitude(prevPtVect)
+	nextNorm = nextPtVect/magnitude(nextPtVect)
+
+	# Calculate angle between prev and next vector
+	dotProducts = np.zeros(prevPtVect.shape[1])
+	for idx in range(len(dotProducts)): 
+		dotProducts[idx] = np.dot(prevNorm[:, idx], nextNorm[:, idx])
+
+	angles = np.arccos(np.clip(dotProducts, -1.0, 1.0))
+
+	# Calculate magnitude of forces
+	forceMags = np.zeros_like(angles)
+	forceMags = np.max([minAng-angles, forceMags], axis=0)
+	forceMags = np.min([maxAng-angles, forceMags], axis=0)
+	forceMags *= forcePerRad
+
+	outForces = np.zeros_like(path)
+
+	# Apply force on center of each angle
+	forceNormalVect = (prevNorm + nextNorm) / 2
+	forceNormalVect = forceNormalVect/magnitude(forceNormalVect)
+	outForces[:, 1:-1] -= forceMags*forceNormalVect	
+	
+	
+	# # Apply inline force on each adjacent particle
+	# outForces[:, :-2] += forceMags*prevNorm
+	# outForces[:, 2:]  += forceMags*nextNorm
+
+	# # Push/pull adjacent particles towards or away from each other
+	# # This helps propagate desired change along path
+	# # Could definitely be improved by forcibly rotating each point to the precise correct position, but I don't want to do that math rn
+	# prevToNextVect = path[:, 2:] - path[:, :-2]
+	# prevToNextNorm = prevToNextVect/magnitude(prevToNextVect)
+	# outForces[:, :-2] -= forceMags*prevToNextNorm
+	# outForces[:, 2:]  += forceMags*prevToNextNorm
+	
+	# Use cross product to calculate appropriate vectors to pull apart
+	crossProdNorm = np.cross(prevNorm, nextNorm, axis=0)
+	crossProdNorm = crossProdNorm/magnitude(crossProdNorm)
+	
+	testVects = np.zeros_like(path)
+	outForces[:, 2:]  += forceMags * np.cross(nextNorm, crossProdNorm, axis=0)
+	outForces[:, :-2] -= forceMags * np.cross(prevNorm, crossProdNorm, axis=0)
+
+	return outForces, outForces
+
+
+def subdividePath(path, only_return_new=False):
+	tck, u = splprep(path, s=0)
+	pathInterp = (u[1:] + u[:-1]) / 2
+	new_points = splev(pathInterp, tck)
+	new_points = np.array(new_points, dtype=np.double)
+	print(u)
+
+	if only_return_new:
+		return np.array(new_points)
+	else:
+		allPoints = np.zeros((path.shape[0], path.shape[1] + new_points.shape[1]), dtype=np.double)
+		allPoints[:, ::2] = path
+		allPoints[:, 1::2] = new_points
+		return allPoints
