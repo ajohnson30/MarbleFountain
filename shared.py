@@ -6,7 +6,6 @@ from random import random
 from copy import deepcopy
 import pickle as pkl
 
-norm
 
 # Big params
 SIZE_X = 110
@@ -89,16 +88,16 @@ def normalizePathDists(path, targDist, forcePerDist):
 	return outForces
 
 # Repel away from paths
-# UNTESTED
-def repelPoints(pts, repelPts, peakForce, cutOffDist):
-	outForces = np.zeros_like(pts)
-	for ptIdx in range(len(pts)):
-		fooPt = pts[:, ptIdx]
-		ptDiffs = repelPts - fooPt[:, None] # May not work
-		ptDists = magnitude(ptDiffs)
-		ptForceMags = (peakForce/cutOffDist) * np.max([cutOffDist - ptDists, np.zeros_like(pts)[0]])
+def repelPoints(path, repelPts, peakForce, cutOffDist):
+	outForces = np.zeros_like(path)
+	for ptIdx in range(path.shape[1]):
+		fooPt = path[:, ptIdx]
 
-		outForces[ptIdx] = np.sum(ptForceMags * (ptDiffs / ptDists), axis=0)
+		ptDiffs = fooPt[:, None] - repelPts
+		ptDists = magnitude(ptDiffs)
+		ptForceMags = (peakForce/cutOffDist) * np.max([cutOffDist - ptDists, np.zeros_like(ptDists)], axis=0)
+
+		outForces[:, ptIdx] = np.sum(ptForceMags * (ptDiffs / ptDists), axis=1) 
 
 	return outForces
 
@@ -114,7 +113,7 @@ def repelPathFromSelf(path, dropAdjacentPointCnt, peakForce, cutOffDist):
 				pathSubset,
 			], axis=1)
 
-		ptDiffs = pathSubset - fooPt[:, None] # May not work
+		ptDiffs = fooPt[:, None] - pathSubset
 		ptDists = magnitude(ptDiffs)
 		ptForceMags = (peakForce/cutOffDist) * np.max([cutOffDist - ptDists, np.zeros_like(ptDists)], axis=0)
 
@@ -185,7 +184,6 @@ def subdividePath(path, only_return_new=False):
 	pathInterp = (u[1:] + u[:-1]) / 2
 	new_points = splev(pathInterp, tck)
 	new_points = np.array(new_points, dtype=np.double)
-	print(u)
 
 	if only_return_new:
 		return np.array(new_points)
