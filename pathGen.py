@@ -8,24 +8,26 @@ import pickle as pkl
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import sys
+import os
 
+from defs import *
 from shared import *
 
 
 
 
 # nextPt = np.array([ random()*xSize, random()*ySize, -ii*dropPerSegment ])
-PATH_ITERS = 100
-PATH_COUNT = 1
 
+targetHeights = SIZE_Z - np.arange(0, SIZE_Z, SIZE_Z/POINT_COUNT)
 
 # Generate initial path
 pathList = []
 for pathIdx in range(PATH_COUNT):
-    path = randomPath(POINT_COUNT, BOUNDING_BOX)
+    path = randomPath(INIT_PATH_PTS, BOUNDING_BOX)
+    path[2, :] = targetHeights[:INIT_PATH_PTS]
     pathList.append(path)
 
-targetHeights = -PT_DROP * np.arange(POINT_COUNT)
+# targetHeights = PT_DROP * (POINT_COUNT - np.arange(POINT_COUNT))
 
 # Move points to local minima
 for pathIteration in range(PATH_ITERS):
@@ -36,38 +38,38 @@ for pathIteration in range(PATH_ITERS):
         forceSet = np.zeros_like(path)
 
         # Pull towards bounding box
-        boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, 10, 1.0)
+        boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, 100.0, 5.0, axCount=3)
 
         # Pull towards Z position
-        targHeightForce = pullTowardsTargetHeights(path, targetHeights, 0.1, 1)
+        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.1, 5)
 
         # Normalize distances between points50
         pathNormForce = normalizePathDists(path, PT_SPACING, 0.2)
 
         # Repel away from own path
-        noSelfIntersectionForce = repelPathFromSelf(path, 2, 1.0, 15)
+        noSelfIntersectionForce = repelPathFromSelf(path, 2, 10, ABSOLUTE_MIN_PT_DIST)
+        noSelfIntersectionForce = repelPathFromSelf(path, 10, 0.01, 100)
 
         # Limit path angle
-        pathAngleForce = correctPathAngle(path, 2.7, 3.1, 1.0)[0]
+        pathAngleForce = correctPathAngle(path, 3.0, 3.2, 1.0)[0]
 
         # Repel away from other paths
         repelForce = np.zeros_like(path)
         for cmpIdx in range(len(pathList)):
             if pathIdx == cmpIdx: continue
-            repelForce += repelPoints(path, pathList[cmpIdx], 0.5, 15)
+            repelForce += repelPoints(path, pathList[cmpIdx], 10, ABSOLUTE_MIN_PT_DIST) # Absolute required distance between points
+            # repelForce[2] = np.clip(repelForce[2], -5, 5)
+            repelForce += repelPoints(path, pathList[cmpIdx], 0.01, 50)
 
-
-
-        print("{:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f}".format(
-            np.average(magnitude(boundingBoxForce)),
-            np.average(magnitude(targHeightForce)),
-            np.average(magnitude(pathNormForce)),
-            np.average(magnitude(noSelfIntersectionForce)),
-            np.average(magnitude(pathAngleForce)),
-            np.average(magnitude(repelForce)),
+        print("{:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f}".format(
+            np.median(magnitude(boundingBoxForce)),
+            np.median(magnitude(targHeightForce)),
+            np.median(magnitude(pathNormForce)),
+            np.median(magnitude(noSelfIntersectionForce[~np.isnan(noSelfIntersectionForce)])),
+            np.median(magnitude(pathAngleForce)),
+            np.median(magnitude(repelForce[~np.isnan(repelForce)])),
             ))
-
-
+        
         if False:
             ax = plt.figure().add_subplot(projection='3d')
             ax.set_xlabel('X')
@@ -90,8 +92,30 @@ for pathIteration in range(PATH_ITERS):
 
         path += boundingBoxForce + targHeightForce + pathNormForce + noSelfIntersectionForce + pathAngleForce + repelForce
 
+        # Add points gradually
+        if path.shape[1] < POINT_COUNT:
+            newPt = path[:, -1:]
 
+            newPt[0, 0] += PT_DROP - np.random.random()*2*PT_DROP
+            newPt[1, 0] += PT_DROP - np.random.random()*2*PT_DROP
+            newPt[2, 0] -= PT_DROP
+            
+            path = np.concatenate([path, newPt], axis=1)
 
+            # print(path.shape)
+        else:
+            # Force beginning and end to center
+            path[0, (0, -1)] = SIZE_X/2
+            path[1, (0, -1)] = SIZE_Y/2
+
+            path[2, 0] = targetHeights[0]
+            path[2, -1] = targetHeights[-1]
+        
+        # Handle any consequtive points overlapping in XY, as this causes a divide by 0
+        singularities = np.where(magnitude(path[:2, 1:] - path[:2, :-1]) < 0.1)
+        path[0, singularities] += 0.01
+
+        pathList[pathIdx] = path
 
 # Use spline interpolation for additonal points
 fullPaths = [subdividePath(path) for path in pathList]
@@ -138,22 +162,32 @@ for pathIdx in range(len(pathList)):
 
 
     ax.scatter(*path)
-    forceSet = correctPathAngle(path, 2.5, 3, 5)[1]
 
-    # for idx in range(len(path[0])):
-    #     pt = path[:, idx]
-    #     vect = forceSet[:, idx]
-    #     ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
-
-
-    for idx in range(path.shape[1]):
+    if False:    
+        forceSet = correctPathAngle(path, 2.5, 3, 5)[1]
+        for idx in range(len(path[0])):
             pt = path[:, idx]
-            vect = forceSet[:, idx] * 10
+            vect = forceSet[:, idx]
             ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
+
+
+    # for idx in range(path.shape[1]):
+    #         pt = path[:, idx]
+    #         vect = forceSet[:, idx] * 10
+    #         ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
 
 
     # ax.scatter(*bridgePoints[:, 1::2], color='purple')
     ax.plot(*bridgePoints, alpha=0.5)
+    
+    ax.set_aspect('equal', adjustable='box')
 
+
+# Check if the directory exists
+if not os.path.exists(WORKING_DIR):
+    # Create the directory
+    os.makedirs(WORKING_DIR)
+
+pkl.dump(fullPaths, open(WORKING_DIR+'/path.pkl', 'wb'))
 
 plt.show()

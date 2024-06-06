@@ -7,18 +7,6 @@ from copy import deepcopy
 import pickle as pkl
 
 
-# Big params
-SIZE_X = 110
-SIZE_Y = 200
-SIZE_Z = 200
-
-PT_SPACING = 6 # distance from one point to the next
-PT_DROP = 4 # target z drop per pt
-
-
-BOUNDING_BOX = np.array([SIZE_X, SIZE_Y, SIZE_Z])
-POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP))
-
 def getAng(pt1, pt2): return(np.arctan2(pt2[1] - pt1[1], pt2[0] - pt1[0]))
 
 def angDiff(a1, a2):
@@ -30,24 +18,29 @@ def angDiff(a1, a2):
 # Generate random initial path
 def randomPath(ptCnt, box):
 	path = np.zeros((3, ptCnt), dtype=np.double)
-	path[:2] = np.random.random(path[:2].shape)
+	path[:3] = np.random.random(path[:3].shape)
 	path[0] *= box[0]
 	path[1] *= box[1]
-	path[2] = np.arange(0, -box[2], -box[2]/ptCnt)
+	path[2] *= box[2]
+	# path[2] = np.arange(0, -box[2], -box[2]/ptCnt)
 	
 	return(path)
 
 
 # Pull towards bounding box
-def pushTowardsBoundingBox(pts, box, margin, forcePerDist, axCount = 2):
+def pushTowardsBoundingBox(pts, box, forcePerDist, maxForcePerAxis, axCount = 2):
 	outForces = np.zeros_like(pts)
 	zeros = np.zeros_like(pts[0])
 	
-	for ax in range(axCount):
-		outForces[ax] += np.max([margin - pts[ax], zeros])
-		outForces[ax] += np.min([(box[ax]-margin) - pts[ax], zeros])
+	boxSet = np.tile(box, (pts.shape[1], 1)).T
+	outForces[np.where(pts > boxSet)] -= (pts - boxSet)[np.where(pts > boxSet)]
+	outForces[np.where(pts < 0.0)] -= pts[np.where(pts < 0.0)]
+	# for ax in range(axCount):
+	# 	outForces[ax] -= np.min([pts[ax], zeros])
+	# 	outForces[ax] += np.min([box[ax] - pts[ax], zeros])
 
 	outForces *= forcePerDist
+	outForces = np.clip(outForces, -maxForcePerAxis, maxForcePerAxis)
 	return(outForces)
 
 # Pull towards Z position
@@ -72,6 +65,8 @@ def getPathDists(path):
 def normalizePathDists(path, targDist, forcePerDist):
 	pathDiffs = path[:, :-1] - path[:, 1:]
 	pathDists = magnitude(pathDiffs)
+
+	pathDists[np.where(pathDists == 0.0)] = 1.0
 	pathNorms = pathDiffs / pathDists
 
 	# np.linalg.norm()
@@ -96,7 +91,7 @@ def repelPoints(path, repelPts, peakForce, cutOffDist):
 		ptDiffs = fooPt[:, None] - repelPts
 		ptDists = magnitude(ptDiffs)
 		ptForceMags = (peakForce/cutOffDist) * np.max([cutOffDist - ptDists, np.zeros_like(ptDists)], axis=0)
-
+		ptDists[ptDists == 0.0] = 1e-6 # Handle overlapping points
 		outForces[:, ptIdx] = np.sum(ptForceMags * (ptDiffs / ptDists), axis=1) 
 
 	return outForces
