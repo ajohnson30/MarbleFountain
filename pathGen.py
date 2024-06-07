@@ -25,9 +25,22 @@ pathList = []
 for pathIdx in range(PATH_COUNT):
     path = randomPath(INIT_PATH_PTS, BOUNDING_BOX)
     path[2, :] = targetHeights[:INIT_PATH_PTS]
+
+    # Init first and last points
+    angle = np.pi*2*pathIdx/PATH_COUNT
+    pointRads = np.linspace(0.0, LOCKED_PT_CNT*PT_SPACING, LOCKED_PT_CNT)
+    path[0, :LOCKED_PT_CNT] = np.cos(angle)*pointRads + SIZE_X/2
+    path[1, :LOCKED_PT_CNT] = np.sin(angle)*pointRads + SIZE_Y/2
+    path[0, -LOCKED_PT_CNT:] = np.flip(np.cos(angle)*pointRads) + SIZE_X/2
+    path[1, -LOCKED_PT_CNT:] = np.flip(np.sin(angle)*pointRads) + SIZE_Y/2
+
     pathList.append(path)
 
-# targetHeights = PT_DROP * (POINT_COUNT - np.arange(POINT_COUNT))
+# Calculate no go points
+centerPoints = np.arange(0, SIZE_Z, PT_SPACING)
+centerPoints = np.array([np.zeros_like(centerPoints), np.zeros_like(centerPoints), centerPoints])
+centerPoints[0, :] = SIZE_X/2
+centerPoints[1, :] = SIZE_Y/2
 
 # Move points to local minima
 for pathIteration in range(PATH_ITERS):
@@ -43,7 +56,7 @@ for pathIteration in range(PATH_ITERS):
         # Pull towards Z position
         targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.1, 5)
 
-        # Normalize distances between points50
+        # Normalize distances between points
         pathNormForce = normalizePathDists(path, PT_SPACING, 0.2)
 
         # Repel away from own path
@@ -51,7 +64,7 @@ for pathIteration in range(PATH_ITERS):
         noSelfIntersectionForce = repelPathFromSelf(path, 10, 0.01, 100)
 
         # Limit path angle
-        pathAngleForce = correctPathAngle(path, 3.0, 3.2, 1.0)[0]
+        pathAngleForce = correctPathAngle(path, 3.0, 3.2, 1.0)
 
         # Repel away from other paths
         repelForce = np.zeros_like(path)
@@ -60,15 +73,10 @@ for pathIteration in range(PATH_ITERS):
             repelForce += repelPoints(path, pathList[cmpIdx], 10, ABSOLUTE_MIN_PT_DIST) # Absolute required distance between points
             # repelForce[2] = np.clip(repelForce[2], -5, 5)
             repelForce += repelPoints(path, pathList[cmpIdx], 0.01, 50)
+        
+        # Repel away from center lift
+        repelForce += repelPoints(path, centerPoints, 5.0, ABSOLUTE_MIN_PT_DIST+SCREW_RAD)
 
-        print("{:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f}".format(
-            np.median(magnitude(boundingBoxForce)),
-            np.median(magnitude(targHeightForce)),
-            np.median(magnitude(pathNormForce)),
-            np.median(magnitude(noSelfIntersectionForce[~np.isnan(noSelfIntersectionForce)])),
-            np.median(magnitude(pathAngleForce)),
-            np.median(magnitude(repelForce[~np.isnan(repelForce)])),
-            ))
         
         if False:
             ax = plt.figure().add_subplot(projection='3d')
@@ -90,32 +98,45 @@ for pathIteration in range(PATH_ITERS):
 
             plt.show()
 
-        path += boundingBoxForce + targHeightForce + pathNormForce + noSelfIntersectionForce + pathAngleForce + repelForce
+        sumForce = boundingBoxForce + targHeightForce + pathNormForce + noSelfIntersectionForce + pathAngleForce# + repelForce
 
-        # Add points gradually
-        if path.shape[1] < POINT_COUNT:
-            newPt = path[:, -1:]
+        # Constant dist moves that gradually converge
+        if True:
+            sumForce /= magnitude(sumForce)
+            moveDist = 10.0 * np.square((PATH_ITERS - pathIteration)/PATH_ITERS)
+            print("{:4.4}: ".format(moveDist), end='')
+            sumForce *= moveDist
 
-            newPt[0, 0] += PT_DROP - np.random.random()*2*PT_DROP
-            newPt[1, 0] += PT_DROP - np.random.random()*2*PT_DROP
-            newPt[2, 0] -= PT_DROP
-            
-            path = np.concatenate([path, newPt], axis=1)
+        path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] += sumForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT]
+        
+        if False:
+            # Add points gradually
+            if path.shape[1] < POINT_COUNT:
+                newPt = path[:, -1:]
 
-            # print(path.shape)
-        else:
-            # Force beginning and end to center
-            path[0, (0, -1)] = SIZE_X/2
-            path[1, (0, -1)] = SIZE_Y/2
+                newPt[0, 0] += PT_DROP - np.random.random()*2*PT_DROP
+                newPt[1, 0] += PT_DROP - np.random.random()*2*PT_DROP
+                newPt[2, 0] -= PT_DROP
+                
+                path = np.concatenate([path, newPt], axis=1)
 
-            path[2, 0] = targetHeights[0]
-            path[2, -1] = targetHeights[-1]
+                # print(path.shape)
         
         # Handle any consequtive points overlapping in XY, as this causes a divide by 0
         singularities = np.where(magnitude(path[:2, 1:] - path[:2, :-1]) < 0.1)
         path[0, singularities] += 0.01
 
         pathList[pathIdx] = path
+
+
+        print("{:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f}".format(
+            np.median(magnitude(boundingBoxForce)),
+            np.median(magnitude(targHeightForce)),
+            np.median(magnitude(pathNormForce)),
+            np.median(magnitude(noSelfIntersectionForce)),
+            np.median(magnitude(pathAngleForce)),
+            np.median(magnitude(repelForce)),
+            ))
 
 # Use spline interpolation for additonal points
 fullPaths = [subdividePath(path) for path in pathList]
@@ -161,10 +182,15 @@ for pathIdx in range(len(pathList)):
     path = pathList[pathIdx]
 
 
+    ax.scatter(*centerPoints)
+
     ax.scatter(*path)
 
+    ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
+    ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
+
     if False:    
-        forceSet = correctPathAngle(path, 2.5, 3, 5)[1]
+        forceSet = correctPathAngle(path, 2.5, 3, 5)
         for idx in range(len(path[0])):
             pt = path[:, idx]
             vect = forceSet[:, idx]

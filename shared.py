@@ -53,7 +53,9 @@ def pullTowardsTargetHeights(pts, zTargetPositions, forcePerDist, maxForce=5):
 # Shorthand for magnitude of vector
 def magnitude(vect):
 	if len(vect.shape) == 2:
-		return(np.sqrt(np.sum(pow(vect,2), axis=0)))
+		magnitude = np.sqrt(np.sum(pow(vect,2), axis=0))
+		magnitude[magnitude == 0.0] = 1e-20
+		return(magnitude)
 	else:
 		return(np.sqrt(np.sum(pow(vect,2))))
 
@@ -123,7 +125,7 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, flatten=True):
 		path[2] = 0
 
 	# Calculate vectors and normals to preceding and succeeding point
-	pathDiffs = path[:, :-1] - path[:, 1:]
+	pathDiffs = path[:, 1:] - path[:, :-1]
 	nextPtVect = pathDiffs[:, 1:]
 	prevPtVect = -pathDiffs[:, :-1]
 
@@ -131,9 +133,9 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, flatten=True):
 	nextNorm = nextPtVect/magnitude(nextPtVect)
 
 	# Calculate angle between prev and next vector
-	dotProducts = np.zeros(prevPtVect.shape[1])
+	dotProducts = np.zeros(nextPtVect.shape[1])
 	for idx in range(len(dotProducts)): 
-		dotProducts[idx] = np.dot(prevNorm[:, idx], nextNorm[:, idx])
+		dotProducts[idx] = np.dot(nextNorm[:, idx], prevNorm[:, idx])
 
 	angles = np.arccos(np.clip(dotProducts, -1.0, 1.0))
 
@@ -164,14 +166,14 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, flatten=True):
 	# outForces[:, 2:]  += forceMags*prevToNextNorm
 	
 	# Use cross product to calculate appropriate vectors to pull apart
-	crossProdNorm = np.cross(prevNorm, nextNorm, axis=0)
+	crossProdNorm = np.cross(nextNorm, prevNorm, axis=0)
 	crossProdNorm = crossProdNorm/magnitude(crossProdNorm)
 	
 	testVects = np.zeros_like(path)
 	outForces[:, 2:]  += forceMags * np.cross(nextNorm, crossProdNorm, axis=0)
 	outForces[:, :-2] -= forceMags * np.cross(prevNorm, crossProdNorm, axis=0)
 
-	return outForces, outForces
+	return outForces
 
 
 def subdividePath(path, only_return_new=False):
@@ -187,3 +189,17 @@ def subdividePath(path, only_return_new=False):
 		allPoints[:, ::2] = path
 		allPoints[:, 1::2] = new_points
 		return allPoints
+
+
+def calculatePathRotations(path):	
+	baseAngles = np.arctan2(path[1, 2:] - path[1, :-2], path[0, 2:] - path[0, :-2])
+	angles = np.arctan2(np.diff(path[1]), np.diff(path[0]))
+	changeInAngle = np.diff(angles)
+
+	rotations = np.zeros_like(path)[:2]
+	rotations[0, 1:-1] = baseAngles
+	rotations[0, 0] = angles[0]
+	rotations[0, -1] = angles[-1]
+	rotations[1, 1:-1] = -changeInAngle
+
+	return rotations
