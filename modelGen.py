@@ -24,7 +24,7 @@ outputAssembly.save_as_scad(WORKING_DIR + "screw.scad")
 
 
 # Load path data
-fullPaths = pkl.load(open(WORKING_DIR+'/path.pkl', 'rb'))
+fullPaths = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
 
 outputAssembly = sphere(0)
 supportPoints = []

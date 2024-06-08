@@ -115,9 +115,12 @@ def generateCenterScrewRotatingPart():
 	outputScrew += getShapePathSet(bottomRailPath, None, railSphere)
 
 	# Base rail
-	baseRailPath = deepcopy(bottomRailPath[:, :SCREW_RESOLUTION+1])
-	baseRailPath[2] = 0
+	baseRailPath = deepcopy(bottomRailPath[:, SCREW_RESOLUTION:(SCREW_RESOLUTION*2 +1)])
+	baseRailPath[2] = 0.00000001
 	outputScrew += getShapePathSet(baseRailPath, None, railSphere)
+	# baseRailPath = deepcopy(bottomRailPath[:, 14:SCREW_RESOLUTION+1]) # If I do this all in 1 go it dies for some reason
+	# baseRailPath[2] = 0.00000001
+	# outputScrew += getShapePathSet(baseRailPath, None, railSphere)
 
 	# Inside rail
 	insideRailPath = deepcopy(basePath)

@@ -6,6 +6,7 @@ from random import random
 from copy import deepcopy
 import pickle as pkl
 
+from defs import *
 
 def getAng(pt1, pt2): return(np.arctan2(pt2[1] - pt1[1], pt2[0] - pt1[0]))
 
@@ -18,11 +19,17 @@ def angDiff(a1, a2):
 # Generate random initial path
 def randomPath(ptCnt, box):
 	path = np.zeros((3, ptCnt), dtype=np.double)
-	path[:3] = np.random.random(path[:3].shape)
-	path[0] *= box[0]
-	path[1] *= box[1]
-	path[2] *= box[2]
-	# path[2] = np.arange(0, -box[2], -box[2]/ptCnt)
+	if LESS_RANDOM_INIT_PATH:
+		# Sort of random points
+		for idx in range(3):
+			randPts = np.random.random(RANDOM_CNT)
+			path[idx] = np.interp(np.linspace(0, RANDOM_CNT, ptCnt), np.arange(RANDOM_CNT), randPts)*box[idx]
+	else:
+		# Fully random points
+		path[:3] = np.random.random(path[:3].shape)
+		path[0] *= box[0]
+		path[1] *= box[1]
+		path[2] *= box[2]
 	
 	return(path)
 
@@ -203,3 +210,23 @@ def calculatePathRotations(path):
 	rotations[1, 1:-1] = -changeInAngle
 
 	return rotations
+
+def redistributePathByForce(path, sumForce):
+	# Resample path increasing number of points in high force areas to attempt to relieve knots
+	forceMag = magnitude(sumForce)
+
+	forceMag += np.average(forceMag) # add baseline
+	interpPosition = np.cumsum(forceMag)
+	
+	ptCnt = path.shape[1]
+	newPath = np.zeros_like(path)
+
+
+	for idx in range(3):
+		newPath[idx] = np.interp(
+			np.linspace(0, interpPosition[-1], ptCnt), 
+			interpPosition, 
+			path[idx]
+		)
+
+	return(newPath)

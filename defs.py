@@ -10,11 +10,17 @@ PT_SPACING = 6 # distance from one point to the next
 PT_DROP = 1.5 # target z drop per pt
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP))
 
-PATH_ITERS = 200
-PATH_COUNT = 3
-INIT_PATH_PTS = POINT_COUNT
+PATH_COUNT = 4
 
-LOCKED_PT_CNT = 3 # Points locked in a straight line as part of the initial path
+# Path gen optimization
+PATH_ITERS = 150
+RESAMPLE_AT = [75]
+SET_ITERATION_MOVE_DISTS = False
+LESS_RANDOM_INIT_PATH = True
+RANDOM_CNT = 10
+
+INIT_PATH_PTS = POINT_COUNT
+LOCKED_PT_CNT = 5 # Points locked in a straight line as part of the initial path
 
 # Track defs
 MARBLE_RAD = 6.3/2
@@ -36,7 +42,7 @@ SCREW_SUPPORT_GROUPING = 5
 SCREW_OUTER_TRACK_DIST = 0.0 # How far out to place the bottom rail
 SCREW_TOP_PUSH_PTS = 10 # How many points at the top of the screw to push towards the outside
 
-WORKING_DIR = 'proc/Test'
+WORKING_DIR = 'proc/Test/'
 
 
 

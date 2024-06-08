@@ -15,6 +15,11 @@ from shared import *
 
 
 
+ax = plt.figure().add_subplot(projection='3d')
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
+
 
 # nextPt = np.array([ random()*xSize, random()*ySize, -ii*dropPerSegment ])
 
@@ -54,7 +59,7 @@ for pathIteration in range(PATH_ITERS):
         boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, 100.0, 5.0, axCount=3)
 
         # Pull towards Z position
-        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.1, 5)
+        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.05, 5)
 
         # Normalize distances between points
         pathNormForce = normalizePathDists(path, PT_SPACING, 0.2)
@@ -70,7 +75,7 @@ for pathIteration in range(PATH_ITERS):
         repelForce = np.zeros_like(path)
         for cmpIdx in range(len(pathList)):
             if pathIdx == cmpIdx: continue
-            repelForce += repelPoints(path, pathList[cmpIdx], 10, ABSOLUTE_MIN_PT_DIST) # Absolute required distance between points
+            repelForce += repelPoints(path, pathList[cmpIdx], 20, ABSOLUTE_MIN_PT_DIST*2) # Absolute required distance between points
             # repelForce[2] = np.clip(repelForce[2], -5, 5)
             repelForce += repelPoints(path, pathList[cmpIdx], 0.01, 50)
         
@@ -98,17 +103,23 @@ for pathIteration in range(PATH_ITERS):
 
             plt.show()
 
-        sumForce = boundingBoxForce + targHeightForce + pathNormForce + noSelfIntersectionForce + pathAngleForce# + repelForce
+        sumForce = boundingBoxForce + targHeightForce + pathNormForce + noSelfIntersectionForce + pathAngleForce + repelForce
+
+        if pathIteration in RESAMPLE_AT:
+            forceMag = magnitude(sumForce)
+            path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] = redistributePathByForce(path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT], sumForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT])
+            # path = redistributePathByForce(path, sumForce)
+        else:
+            path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] += sumForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT]
+
 
         # Constant dist moves that gradually converge
-        if True:
+        if SET_ITERATION_MOVE_DISTS:
             sumForce /= magnitude(sumForce)
             moveDist = 10.0 * np.square((PATH_ITERS - pathIteration)/PATH_ITERS)
-            print("{:4.4}: ".format(moveDist), end='')
             sumForce *= moveDist
 
-        path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] += sumForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT]
-        
+                
         if False:
             # Add points gradually
             if path.shape[1] < POINT_COUNT:
@@ -128,18 +139,24 @@ for pathIteration in range(PATH_ITERS):
 
         pathList[pathIdx] = path
 
+        if pathIdx == 0:
 
-        print("{:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f}".format(
-            np.median(magnitude(boundingBoxForce)),
-            np.median(magnitude(targHeightForce)),
-            np.median(magnitude(pathNormForce)),
-            np.median(magnitude(noSelfIntersectionForce)),
-            np.median(magnitude(pathAngleForce)),
-            np.median(magnitude(repelForce)),
-            ))
+            print("{:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f} {:4.10f}".format(
+                np.median(magnitude(boundingBoxForce)),
+                np.median(magnitude(targHeightForce)),
+                np.median(magnitude(pathNormForce)),
+                np.median(magnitude(noSelfIntersectionForce)),
+                np.median(magnitude(pathAngleForce)),
+                np.median(magnitude(repelForce)),
+                ))
+            
+            if SET_ITERATION_MOVE_DISTS:
+                print("{:4.5}: ".format(moveDist), end='')
 
+        
 # Use spline interpolation for additonal points
 fullPaths = [subdividePath(path) for path in pathList]
+# fullPaths = [path for path in pathList]
 
 # Generate supports
     # Normalize distances
@@ -172,22 +189,17 @@ fullPaths = [subdividePath(path) for path in pathList]
 
 
 
-ax = plt.figure().add_subplot(projection='3d')
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-
 for pathIdx in range(len(pathList)):
     bridgePoints = fullPaths[pathIdx]
     path = pathList[pathIdx]
 
 
-    ax.scatter(*centerPoints)
+    # ax.scatter(*centerPoints)
 
-    ax.scatter(*path)
+    # ax.scatter(*path)
 
-    ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
-    ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
+    # ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
+    # ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
 
     if False:    
         forceSet = correctPathAngle(path, 2.5, 3, 5)
@@ -214,6 +226,6 @@ if not os.path.exists(WORKING_DIR):
     # Create the directory
     os.makedirs(WORKING_DIR)
 
-pkl.dump(fullPaths, open(WORKING_DIR+'/path.pkl', 'wb'))
+pkl.dump(fullPaths, open(WORKING_DIR+'path.pkl', 'wb'))
 
 plt.show()
