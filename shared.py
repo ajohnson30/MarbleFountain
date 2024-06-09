@@ -126,15 +126,16 @@ def repelPathFromSelf(path, dropAdjacentPointCnt, peakForce, cutOffDist):
 	return outForces
 
 # Limit path angle
-def correctPathAngle(path, minAng, maxAng, forcePerRad, flatten=True):
+def correctPathAngle(path, minAng, maxAng, forcePerRad, diffPointOffsetCnt=1, flatten=True):
+	# NOTE: 3D mode seems to be bugged, do not enable atm
 	if flatten:
 		path = deepcopy(path)
 		path[2] = 0
 
 	# Calculate vectors and normals to preceding and succeeding point
-	pathDiffs = path[:, 1:] - path[:, :-1]
-	nextPtVect = pathDiffs[:, 1:]
-	prevPtVect = -pathDiffs[:, :-1]
+	pathDiffs = path[:, diffPointOffsetCnt:] - path[:, :-diffPointOffsetCnt]
+	nextPtVect = pathDiffs[:, diffPointOffsetCnt:]
+	prevPtVect = -pathDiffs[:, :-diffPointOffsetCnt]
 
 	prevNorm = prevPtVect/magnitude(prevPtVect)
 	nextNorm = nextPtVect/magnitude(nextPtVect)
@@ -157,7 +158,7 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, flatten=True):
 	# Apply force on center of each angle
 	forceNormalVect = (prevNorm + nextNorm) / 2
 	forceNormalVect = forceNormalVect/magnitude(forceNormalVect)
-	outForces[:, 1:-1] -= forceMags*forceNormalVect	
+	outForces[:, diffPointOffsetCnt:-diffPointOffsetCnt] -= forceMags*forceNormalVect	
 	
 	
 	# # Apply inline force on each adjacent particle
@@ -177,8 +178,8 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, flatten=True):
 	crossProdNorm = crossProdNorm/magnitude(crossProdNorm)
 	
 	testVects = np.zeros_like(path)
-	outForces[:, 2:]  += forceMags * np.cross(nextNorm, crossProdNorm, axis=0)
-	outForces[:, :-2] -= forceMags * np.cross(prevNorm, crossProdNorm, axis=0)
+	outForces[:, (diffPointOffsetCnt*2):]  += forceMags * np.cross(nextNorm, crossProdNorm, axis=0)
+	outForces[:, :-(diffPointOffsetCnt*2)] -= forceMags * np.cross(prevNorm, crossProdNorm, axis=0)
 
 	return outForces
 
@@ -208,6 +209,18 @@ def calculatePathRotations(path):
 	rotations[0, 0] = angles[0]
 	rotations[0, -1] = angles[-1]
 	rotations[1, 1:-1] = -changeInAngle
+
+	# Smooth rotations
+	rotations[1] = np.convolve(rotations[1], np.ones(SMOOTH_TILT_CNT)/SMOOTH_TILT_CNT, mode='same')
+
+	# Limit max rotation
+	rotations[1] = np.clip(rotations[1], -TRACK_MAX_TILT, TRACK_MAX_TILT)
+
+	rotations[1] = 0 # JUST FOR TESTING SUPPORTS
+
+	# # Smooth tilts
+	# cumsum_vec = numpy.cumsum(numpy.insert(data, 0, 0)) 
+	# ma_vec = (cumsum_vec[window_width:] - cumsum_vec[:-window_width]) / window_width
 
 	return rotations
 

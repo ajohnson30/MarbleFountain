@@ -16,9 +16,13 @@ from random import random
 from copy import deepcopy
 import pickle as pkl
 import sys
+import os
 
 from defs import *
+from shared import *
+import positionFuncs as pf
 
+# Extrude shape along path with rotaions
 def getShapePathSet(path, rotations, profile, returnIndividual=False, returnFunc=chain_hull):
 	outProfiles = []
 	if type(profile) != list: 
@@ -46,6 +50,12 @@ def getShapePathSet(path, rotations, profile, returnIndividual=False, returnFunc
 		return(output)
 
 	return(returnFunc()(*outProfiles))
+
+
+
+
+# Screw generation
+
 
 def generateScrewSupports(inputPath, railSphere):
 	outSupports = sphere(0)
@@ -86,6 +96,7 @@ def generateScrewSupports(inputPath, railSphere):
 
 	return(outSupports)
 
+# Generate the actual rotating part of the screw lift
 def generateCenterScrewRotatingPart():
 	# Define base objects
 	railSphere = sphere(TRACK_RAD, _fn=UNIVERSAL_FN)
@@ -176,7 +187,7 @@ def generateTrackFromPath(path, rotations):
 	# Calculate tall and short track profiles
 	shortRail = linear_extrude(1)(circle(TRACK_SUPPORT_RAD, _fn=UNIVERSAL_FN)).rotate([90, 0, 90])
 
-	tallRail =  chain_hull()(*[
+	tallRail =  conv_hull()(*[
 		linear_extrude(0.2)(circle(TRACK_SUPPORT_RAD, _fn=UNIVERSAL_FN)).rotate([90, 0, 90]),
 		linear_extrude(0.2)(circle(TRACK_SUPPORT_RAD, _fn=UNIVERSAL_FN).translate([0, -lowerDist])).rotate([90, 0, 90]),
 	])
@@ -200,5 +211,292 @@ def generateTrackFromPath(path, rotations):
 			)
 	return(tracks)
 
+# Get the support anchors for the track
+def calculateSupportAnchorsForPath(path, rotations):
+	lowerDist = TRACK_SUPPORT_RAD*2
+	trackToPathDist = MARBLE_RAD + TRACK_RAD
+
+	# Calculate the offset of each of the supporting points relative to the frame
+	rightSupportOffset = [0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)-lowerDist]
+	leftSupportOffset = [0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)-lowerDist]
+
+	supportSectionsCount = int(np.ceil(path.shape[1]/2))
+	anchorPts = np.zeros((3, supportSectionsCount*2), dtype=np.double)
+	for ii in range(0, supportSectionsCount*2, 2):
+		anchorPts[:, ii] = path[:, ii] + pf.doRotationMatrixes(rightSupportOffset, [rotations[1, ii], 0, rotations[0, ii]])
+		anchorPts[:, ii+1] = path[:, ii] + pf.doRotationMatrixes(leftSupportOffset, [rotations[1, ii], 0, rotations[0, ii]])
+
+	return(anchorPts)
+
+# Data structure to simplify handling support columns
+class column:
+	def __init__(self, startPos, _size):
+		self.currPos = np.array(startPos, dtype=np.double)
+		self.prevPos = np.array(startPos, dtype=np.double)
+		self.posHist = []
+		self.sumAcc = np.zeros((2), dtype=np.double)
+		self.velocity = np.zeros((2), dtype=np.double)
+		self.size = _size
+		self.mergedFrom = []
+		self.mergingInto = -1
+		self.mergedSize = -1
+
+# Calculate repulsion away from avoidPts
+def calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts):
+	# Get only valid repulsion points
+	fooAvoidPts = avoidPts[:, np.where((avoidPts[2] < currentHeight) & (avoidPts[2] > currentHeight-Z_DIFF_MAX))[0]]
+
+	# Bail if no points to avoid
+	if fooAvoidPts.shape[1] == 0:
+		return(np.zeros((2), dtype=float))
+
+	# Compare each avoid point
+	zDiff = currentHeight - fooAvoidPts[2] # Difference in height
+	posDiff = fooAvoidPts[:2] - fooCol.currPos[:, None] # Difference in XY position
+	distance = magnitude(posDiff[:2]) # XY distance
+
+	# Calculate force magnitude based on Z diff
+	zDiffMag = np.ones_like(distance)
+	zDiffMag[zDiff > Z_DIFF_MIN] = 1 - (zDiff - Z_DIFF_MIN) / (Z_DIFF_MAX - Z_DIFF_MIN)
+	zDiffMag[zDiffMag > Z_DIFF_MAX] = 0
+
+	# Calculate force magnitude based on XY diff
+	posDiffMag = np.ones_like(distance)
+	posDiffMag[distance > POS_DIFF_MIN] = 1 - (distance - POS_DIFF_MIN) / (POS_DIFF_MAX - POS_DIFF_MIN)
+	posDiffMag[posDiffMag > POS_DIFF_MAX] = 0
+	
+	repulsiveForces = PEAK_REPULSION_MAG * pow(posDiffMag, 3) * pow(zDiffMag, 3) * posDiff/distance
+	return(np.sum(repulsiveForces, axis=1))
+
+# Calculate attraction to other supports
+def calculateAttractiveSupportForces(currentColumns, fooCol):
+	attractiveForces = np.zeros_like(fooCol.sumAcc)
+
+	for idx in range(len(currentColumns)):
+		cmpCol = currentColumns[idx]
+		if (cmpCol.currPos == fooCol.currPos).all(): continue # Do not compare point to itself
+
+		posDiff = cmpCol.currPos - fooCol.currPos
+		distance = magnitude(posDiff)
+
+		if distance < 1e-6: distance = 1e-6 # No super low distances (leads to massive acceleration)
+
+		# if distance > SUPPORT_BOUNDARY_FORCE_MAG: # Ignore out of range
+		# 	continue
+
+		attraction = SUPPORT_ATTRACTION_CONSTANT * cmpCol.size / pow(distance, 2) 
+		attractiveForces += attraction * posDiff/distance
+
+	return attractiveForces
+
+# Calculate pull to stay inside of the bounding box
+def calculateBoundarySupportForces(fooCol):
+	boundingBoxForce = np.zeros_like(fooCol.sumAcc)
+	for ax in range(len(boundingBoxForce)):
+		if fooCol.currPos[ax] < 0.0: boundingBoxForce[ax] -= fooCol.currPos[ax]
+		if fooCol.currPos[ax] > BOUNDING_BOX[ax]: boundingBoxForce[ax] -= fooCol.currPos[ax]- BOUNDING_BOX[ax]
+	boundingBoxForce *= SUPPORT_BOUNDARY_FORCE_MAG
+	return(boundingBoxForce)
+
+# Calculate support paths from anchor and avoid points
+def calculateSupports(anchorPts, avoidPts, visPath=None):
+	# Tracking arrays
+	supportNotPlaced = np.ones(anchorPts.shape[1], dtype=np.uint8) # If true, support has not been added yet
+	completeColumns = []
+	currentColumns = []
+
+	# Init display output if requested
+	if visPath != None:
+		from PIL import Image, ImageDraw
+		os.makedirs(visPath, exist_ok=True)
+		imScale = 5
+		plotImage = Image.new('RGB', (SIZE_X*imScale, SIZE_Y*imScale))
+		plotDraw = ImageDraw.Draw(plotImage)
+
+	# Iterate over every layer height
+	layerIdx = -1
+	for currentHeight in np.arange(np.max(anchorPts[:, 2]), BASE_OF_MODEL, -SUPPORT_LAYER_HEIGHT):
+		layerIdx += 1
+
+		# Iterate through new support queue, add if below current height
+		for idx in np.where((supportNotPlaced) & (anchorPts[2] > currentHeight))[0]:
+			fooPt = anchorPts[:, idx]
+			currentColumns.append(column(fooPt[:2], 1)) # Add new column
+			currentColumns[-1].posHist.append(fooPt)
+			supportNotPlaced[idx] = 0 # Do not place point again
+
+		# Iterate over existing columns to calculate motion
+		for idx in range(len(currentColumns)):
+			fooCol = currentColumns[idx]
+			fooCol.prevPos = fooCol.currPos # Update prevpos
+			fooCol.sumAcc[:] = 0 # Reset force
+
+			# Get list of forces applied to each column
+			attractiveForce = calculateAttractiveSupportForces(currentColumns, fooCol)
+			repulsiveForce = calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts)
+			boundaryForce = calculateBoundarySupportForces(fooCol)
+
+			# Calculate acceleration
+			fooCol.sumAcc = attractiveForce + boundaryForce + repulsiveForce
+
+			# Limit acceleration
+			accMag = magnitude(fooCol.sumAcc)
+			if accMag > MAX_MOVE_PER_LAYER:
+				fooCol.sumAcc = MAX_MOVE_PER_LAYER*fooCol.sumAcc/accMag
+			
+			# Calculate velocity
+			fooCol.velocity += fooCol.sumAcc/fooCol.size
+				
+			# Limit vel
+			velMag = pf.magnitude(fooCol.velocity)
+			if velMag > MAX_MOVE_PER_LAYER:
+				fooCol.velocity = MAX_MOVE_PER_LAYER*fooCol.velocity/velMag
+			
+			# Update position
+			fooCol.currPos += fooCol.velocity
+			fooCol.posHist.append(np.array([fooCol.currPos[0], fooCol.currPos[1], currentHeight]))
 
 
+		# Merge supports which are within bounds
+		newColumns = []
+		for idx in range(len(currentColumns)):
+			# Find matches
+			fooCol = currentColumns[idx]
+			for cmpIdx in range(len(currentColumns)):
+				if idx == cmpIdx: 
+					continue # Do not compare point to itself
+
+				cmpCol = currentColumns[cmpIdx]
+				posDiff = cmpCol.currPos - fooCol.currPos
+				distance = magnitude(posDiff)
+
+				if distance < MERGE_RAD:# Merging woo
+					if cmpCol.mergingInto != -1: # Match has existing merge, join that 
+						fooCol.mergingInto = cmpCol.mergingInto
+					else: # Make new column
+						fooCol.mergingInto = len(newColumns)
+						newColumns.append(column(fooPt[:2], 0))
+
+		# Calculate new merged columns
+		for fooCol in currentColumns:
+			if fooCol.mergingInto == -1: continue # Not merging
+
+			mergeCol = newColumns[fooCol.mergingInto]
+			mergeCol.currPos = (mergeCol.currPos*mergeCol.size + fooCol.currPos*fooCol.size) / (mergeCol.size + fooCol.size) # Take average of positions
+			mergeCol.velocity = (mergeCol.velocity*mergeCol.size + fooCol.velocity*fooCol.size) / (mergeCol.size + fooCol.size) # Take size weighted average of velocities
+			mergeCol.prevPos = mergeCol.currPos # Update previous position
+			mergeCol.size += fooCol.size # Sum sizes
+
+		# Eliminate merged columns
+		delIdx = 0
+		while delIdx < len(currentColumns):
+			fooCol = currentColumns[delIdx]
+			if fooCol.mergingInto == -1: # Not merging, continuing
+				delIdx += 1
+				continue
+
+			mergeCol = newColumns[fooCol.mergingInto]
+			fooCol.mergedSize = mergeCol.size # Save final size for later generation
+			mergeCol.mergedFrom.append(len(completeColumns)) # Record index in completeColumns of parent column
+			completeColumns.append(currentColumns.pop(delIdx)) # Move current column to history
+
+		
+		# Remove empty columns
+		fooIdx = 0
+		while fooIdx < len(newColumns)-1:
+			if newColumns[fooIdx].size == 0:
+				newColumns.pop(fooIdx)
+			else:
+				fooIdx += 1
+		
+		# Append new columns to existing set
+		currentColumns += newColumns
+
+		print("{:4.10f} {:4d} {:4d} {:4d}".format(
+			currentHeight, 
+			len(completeColumns),
+			len(currentColumns),
+			999
+			))
+			
+		if visPath != None:
+			plotDraw.rectangle((0, 0, SIZE_X*imScale, SIZE_Y*imScale), fill=(0,0,0))
+
+			circleRad = 0.5
+			for fooPt in currentColumns:
+				circleRad = fooPt.size/2
+				# drawline = (fooPt.currPos[0]*imScale-circleRad, fooPt.currPos[1]*imScale-circleRad, fooPt.prevPos[0]*imScale+circleRad, fooPt.prevPos[1]*imScale+circleRad)
+				# plotDraw.line(drawline, fill=currentColor, width=5)
+		
+				drawEllipse = (fooPt.currPos[0]*imScale-circleRad, fooPt.currPos[1]*imScale-circleRad, fooPt.currPos[0]*imScale+circleRad, fooPt.currPos[1]*imScale+circleRad)
+				plotDraw.ellipse(drawEllipse, fill=(0, 0, 255), width=5)
+			
+			for fooPt in np.swapaxes(avoidPts, 0, 1):
+				zDiff = currentHeight - fooPt[2]
+				if zDiff > Z_DIFF_MAX: continue
+				if zDiff < 0: continue
+
+				circleRad = 1
+				drawEllipse = (fooPt[0]*imScale-circleRad, fooPt[1]*imScale-circleRad, fooPt[0]*imScale+circleRad, fooPt[1]*imScale+circleRad)
+				plotDraw.ellipse(drawEllipse, fill=(255, 0, 0), width=5)
+				
+			plotImage.save(f"{visPath}/layer_{layerIdx}.png")
+
+	# Save all current columns to be export
+	completeColumns += currentColumns
+
+	if np.sum(supportNotPlaced) > 0:
+		print(f"Failed to place {np.sum(supportNotPlaced)} supports, check your Z height variables")
+		exit()
+
+	return completeColumns
+
+# Calculate radius of column from size
+def getColumnRad(size):
+	# fooRad = TRACK_SUPPORT_RAD*np.sqrt(size)
+	fooRad = TRACK_SUPPORT_RAD*np.log(size*np.e)
+	if fooRad > TRACK_SUPPORT_MAX_RAD: fooRad = TRACK_SUPPORT_MAX_RAD
+	return(fooRad)
+
+# Generate supports from calculated columns
+def generateSupports(supportCols):
+	supports = sphere(0)
+	basePositions = [] # List of points and rads to generate the base plat from
+
+	for fooCol in supportCols:
+		# Calculate size of each disk
+		size = fooCol.size
+		mergedSize = fooCol.mergedSize
+		if mergedSize == -1: mergedSize = fooCol.size * 2 # If a column made it to the base, sent the end radius to 2x the initial
+		ptCnt = len(fooCol.posHist)
+		
+		# Calculate size of each profile
+		sizeList = np.linspace(size, mergedSize, ptCnt)
+		if ptCnt > MERGE_SMOOTH_PTS:
+			sizeList[:] = fooCol.size
+			sizeList[-MERGE_SMOOTH_PTS:] = np.linspace(size, mergedSize, MERGE_SMOOTH_PTS)
+		
+		# Generate the profiles
+		outProfiles = []
+		for fooIdx in range(ptCnt):
+			fooPos = fooCol.posHist[fooIdx]
+			fooProfile = linear_extrude(0.05)(circle(getColumnRad(sizeList[fooIdx]))).translate(fooPos)
+			outProfiles.append(fooProfile)
+
+		# Chain hull profiles together
+		supports += chain_hull()(*outProfiles)
+		# for foo in outProfiles: supports += foo # DEBUG
+
+
+		# Join columns
+		for mergeIdx in fooCol.mergedFrom:
+			mergedCol = supportCols[mergeIdx]
+
+			if ptCnt == 0:continue
+			
+			outProfiles = [
+				linear_extrude(0.05)(circle(getColumnRad(mergedCol.mergedSize))).translate(fooCol.posHist[0]),
+				linear_extrude(0.05)(circle(getColumnRad(mergedCol.mergedSize))).translate(mergedCol.posHist[-1]),
+			]
+			supports += chain_hull()(*outProfiles)
+	return(supports)

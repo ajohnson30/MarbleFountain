@@ -70,6 +70,9 @@ for pathIteration in range(PATH_ITERS):
 
         # Limit path angle
         pathAngleForce = correctPathAngle(path, 3.0, 3.2, 1.0)
+        pathAngleForce = correctPathAngle(path, 2.8, 3.2, 0.5, diffPointOffsetCnt=1) # Apply smoothing function across more points
+        pathAngleForce = correctPathAngle(path, 2.4, 3.0, 0.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        # pathAngleForce = correctPathAngle(path, 2.8, 3.2, 0.4, diffPointOffsetCnt=1, flatten=False) # Apply smoothing function across more points
 
         # Repel away from other paths
         repelForce = np.zeros_like(path)
@@ -82,7 +85,6 @@ for pathIteration in range(PATH_ITERS):
         # Repel away from center lift
         repelForce += repelPoints(path, centerPoints, 5.0, ABSOLUTE_MIN_PT_DIST+SCREW_RAD)
 
-        
         if False:
             ax = plt.figure().add_subplot(projection='3d')
             ax.set_xlabel('X')

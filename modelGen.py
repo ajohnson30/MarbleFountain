@@ -24,21 +24,42 @@ outputAssembly.save_as_scad(WORKING_DIR + "screw.scad")
 
 
 # Load path data
-fullPaths = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
+pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
+rotList = [calculatePathRotations(path) for path in pathList]
 
 outputAssembly = sphere(0)
-supportPoints = []
-for path in fullPaths:
-    rot = calculatePathRotations(path)
+
+# Generate actual path geometry
+for path, rot in zip(pathList, rotList):
     outputAssembly += generateTrackFromPath(path, rot)
 
 # outputAssembly.save_as_scad(WORKING_DIR + "out.scad")
 
-# Show marble path
-if True:
+# Add path of marble in 3d to check for intersections
+if False:
 	testProfile = sphere(MARBLE_RAD)
 	for fooPath in fullPaths:
 		outputAssembly += getShapePathSet(fooPath, np.zeros_like(fooPath), testProfile)
+
+# Get list of all points which require support
+supportAnchors = [calculateSupportAnchorsForPath(path, rot) for path, rot in zip(pathList, rotList)]
+supportPoints = np.concatenate(supportAnchors, axis=1)
+
+# Get list of all no-go points
+noGoPoints = np.array([[SIZE_X/2], [SIZE_Y/2], [SIZE_Z/2]])
+
+# Generate supports
+visPath = None
+if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
+supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
+outputAssembly += generateSupports(supportColumns)
+
+# Generate base plate connections
+
+# Visualize all support and no-go points
+if False:
+	for pt in np.swapaxes(supportPoints, 0, 1):
+		outputAssembly += sphere(2).translate(pt)
 
 
 outputAssembly.save_as_scad(WORKING_DIR + "out.scad")
