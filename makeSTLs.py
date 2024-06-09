@@ -15,8 +15,6 @@ for f in files:
         cmd = f"~/install/OpenSCAD.AppImage -o ./{WORKING_DIR}/fast_{of} --enable=fast-csg --export-format binstl ./{WORKING_DIR}/{f}"
         # cmd = f"~/install/OpenSCAD.AppImage -o ./{WORKING_DIR}/fast_{of} --export-format binstl ./{WORKING_DIR}/{f}"
         
-        print(cmd)
-        
         tasks.append(sp.Popen(cmd, shell=True))
         # time.sleep(60*10)
 

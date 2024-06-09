@@ -199,28 +199,28 @@ def subdividePath(path, only_return_new=False):
 		return allPoints
 
 
-def calculatePathRotations(path):	
+def calculatePathRotations(path, diffPointOffsetCnt=2):	
 	baseAngles = np.arctan2(path[1, 2:] - path[1, :-2], path[0, 2:] - path[0, :-2])
 	angles = np.arctan2(np.diff(path[1]), np.diff(path[0]))
 	changeInAngle = np.diff(angles)
+	changeInAngle[changeInAngle > np.pi] -= 2*np.pi
+	changeInAngle[changeInAngle < -np.pi] += 2*np.pi
+
+	# Calculate banking turns
+	tilt = -changeInAngle
+
+	# Smooth rotations
+	tilt = np.convolve(tilt, np.ones(SMOOTH_TILT_CNT_A)/SMOOTH_TILT_CNT_A, mode='same')
+	tilt = np.convolve(tilt, np.ones(SMOOTH_TILT_CNT_B)/SMOOTH_TILT_CNT_B, mode='same')
+	
+	# Limit max rotation
+	tilt = np.clip(tilt, -TRACK_MAX_TILT, TRACK_MAX_TILT)
 
 	rotations = np.zeros_like(path)[:2]
 	rotations[0, 1:-1] = baseAngles
 	rotations[0, 0] = angles[0]
 	rotations[0, -1] = angles[-1]
-	rotations[1, 1:-1] = -changeInAngle
-
-	# Smooth rotations
-	rotations[1] = np.convolve(rotations[1], np.ones(SMOOTH_TILT_CNT)/SMOOTH_TILT_CNT, mode='same')
-
-	# Limit max rotation
-	rotations[1] = np.clip(rotations[1], -TRACK_MAX_TILT, TRACK_MAX_TILT)
-
-	rotations[1] = 0 # JUST FOR TESTING SUPPORTS
-
-	# # Smooth tilts
-	# cumsum_vec = numpy.cumsum(numpy.insert(data, 0, 0)) 
-	# ma_vec = (cumsum_vec[window_width:] - cumsum_vec[:-window_width]) / window_width
+	rotations[1, 1:-1] = tilt
 
 	return rotations
 

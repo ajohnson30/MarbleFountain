@@ -29,7 +29,7 @@ rotList = [calculatePathRotations(path) for path in pathList]
 
 outputAssembly = sphere(0)
 
-# Generate actual path geometry
+# # Generate actual path geometry
 for path, rot in zip(pathList, rotList):
     outputAssembly += generateTrackFromPath(path, rot)
 
@@ -46,7 +46,17 @@ supportAnchors = [calculateSupportAnchorsForPath(path, rot) for path, rot in zip
 supportPoints = np.concatenate(supportAnchors, axis=1)
 
 # Get list of all no-go points
-noGoPoints = np.array([[SIZE_X/2], [SIZE_Y/2], [SIZE_Z/2]])
+noGoPoints = np.concatenate([path for path in pathList], axis=1) # Subdivide to get intermediate points
+# noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
+# # Calculate lift exclusion zone
+# liftNoGoRad = SCREW_RAD - POS_DIFF_MIN
+# liftNoGoZ = np.arange(BASE_OF_MODEL, SIZE_Z, 60)
+# centerPoints = np.array([liftNoGoZ, liftNoGoZ, liftNoGoZ])
+# centerPoints[0, :] = SIZE_X/2 + liftNoGoRad*np.cos(liftNoGoZ)
+# centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
+# noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
+
+
 
 # Generate supports
 visPath = None

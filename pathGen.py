@@ -33,7 +33,7 @@ for pathIdx in range(PATH_COUNT):
 
     # Init first and last points
     angle = np.pi*2*pathIdx/PATH_COUNT
-    pointRads = np.linspace(0.0, LOCKED_PT_CNT*PT_SPACING, LOCKED_PT_CNT)
+    pointRads = np.linspace(SCREW_RAD, LOCKED_PT_CNT*PT_SPACING+SCREW_RAD, LOCKED_PT_CNT)
     path[0, :LOCKED_PT_CNT] = np.cos(angle)*pointRads + SIZE_X/2
     path[1, :LOCKED_PT_CNT] = np.sin(angle)*pointRads + SIZE_Y/2
     path[0, -LOCKED_PT_CNT:] = np.flip(np.cos(angle)*pointRads) + SIZE_X/2
@@ -69,9 +69,9 @@ for pathIteration in range(PATH_ITERS):
         noSelfIntersectionForce = repelPathFromSelf(path, 10, 0.01, 100)
 
         # Limit path angle
-        pathAngleForce = correctPathAngle(path, 3.0, 3.2, 1.0)
-        pathAngleForce = correctPathAngle(path, 2.8, 3.2, 0.5, diffPointOffsetCnt=1) # Apply smoothing function across more points
-        pathAngleForce = correctPathAngle(path, 2.4, 3.0, 0.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        pathAngleForce = correctPathAngle(path, 2.9, 3.2, 1.0)
+        pathAngleForce = correctPathAngle(path, 2.6, 3.2, 0.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        pathAngleForce = correctPathAngle(path, 2.4, 3.0, 0.1, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 2.8, 3.2, 0.4, diffPointOffsetCnt=1, flatten=False) # Apply smoothing function across more points
 
         # Repel away from other paths
