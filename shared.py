@@ -22,8 +22,10 @@ def randomPath(ptCnt, box):
 	if LESS_RANDOM_INIT_PATH:
 		# Sort of random points
 		for idx in range(3):
-			randPts = np.random.random(RANDOM_CNT)
-			path[idx] = np.interp(np.linspace(0, RANDOM_CNT, ptCnt), np.arange(RANDOM_CNT), randPts)*box[idx]
+			randPts = np.random.random(RANDOM_CNT+2)
+			randPts[0] = 0.5
+			randPts[-1] = 0.5
+			path[idx] = np.interp(np.linspace(0, RANDOM_CNT+2, ptCnt), np.arange(RANDOM_CNT+2), randPts)*box[idx]
 	else:
 		# Fully random points
 		path[:3] = np.random.random(path[:3].shape)
@@ -57,6 +59,15 @@ def pullTowardsTargetHeights(pts, zTargetPositions, forcePerDist, maxForce=5):
 	outForces[2] = np.clip(outForces[2], -maxForce, maxForce)
 	return outForces
 
+# Pull towards Z position
+def pullTowardsTargetSlope(pts, targetPointDrop, forcePerDist, maxForce=5):
+	outForces = np.zeros_like(pts)
+	ptDiff = pts[2, 1:] - pts[2, :-1]
+	# print(ptDiff - 2*targetPointDrop)
+	outForces[2, :-1] = forcePerDist*(ptDiff - targetPointDrop)
+	outForces[2] = np.clip(outForces[2], -maxForce, maxForce)
+	return outForces
+
 # Shorthand for magnitude of vector
 def magnitude(vect):
 	if len(vect.shape) == 2:
@@ -71,22 +82,20 @@ def getPathDists(path):
 	return magnitude(path[:, 1:] - path[:, :-1])
 
 # Normalize distances between points
-def normalizePathDists(path, targDist, forcePerDist):
-	pathDiffs = path[:, :-1] - path[:, 1:]
+def normalizePathDists(path, targDist, forcePerDist, maxForce = 5.0):
+	pathDiffs = np.diff(path)
 	pathDists = magnitude(pathDiffs)
 
-	pathDists[np.where(pathDists == 0.0)] = 1.0
 	pathNorms = pathDiffs / pathDists
 
-	# np.linalg.norm()
-	forceMags = forcePerDist * (targDist - pathDists)
+	forceMags = (targDist - pathDists) * forcePerDist / 2
 
-	# forceMags = np.clip(forceMags, -forcePerDist/2, forcePerDist/2)
+	forceMags = np.clip(forceMags, -maxForce, maxForce)
 	# forceMags = np.max([forceMags, np.zeros_like(forceMags)-10], axis=0)
 
 	outForces = np.zeros_like(path)
-	outForces[:, :-1] += forceMags * pathNorms
-	outForces[:, 1:] += forceMags * (-pathNorms)
+	outForces[:, :-1] -= forceMags * pathNorms
+	outForces[:, 1:] += forceMags * pathNorms
 
 	# print(forceMags)
 	return outForces
@@ -126,7 +135,7 @@ def repelPathFromSelf(path, dropAdjacentPointCnt, peakForce, cutOffDist):
 	return outForces
 
 # Limit path angle
-def correctPathAngle(path, minAng, maxAng, forcePerRad, diffPointOffsetCnt=1, flatten=True):
+def correctPathAngle(path, minAng, maxAng, forcePerRad, maxForce=5, diffPointOffsetCnt=1, flatten=True):
 	# NOTE: 3D mode seems to be bugged, do not enable atm
 	if flatten:
 		path = deepcopy(path)
@@ -181,7 +190,11 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, diffPointOffsetCnt=1, fl
 	outForces[:, (diffPointOffsetCnt*2):]  += forceMags * np.cross(nextNorm, crossProdNorm, axis=0)
 	outForces[:, :-(diffPointOffsetCnt*2)] -= forceMags * np.cross(prevNorm, crossProdNorm, axis=0)
 
-	return outForces
+	outForceMags = magnitude(outForces)
+	outForceVels = outForces/outForceMags
+	outForceMags = np.clip(outForceMags, -maxForce, maxForce)
+
+	return outForceVels*outForceMags
 
 
 def subdividePath(path, only_return_new=False):
@@ -209,12 +222,15 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	# Calculate banking turns
 	tilt = -changeInAngle
 
+	# Limit max rotation
+	tilt = np.clip(tilt, -TRACK_MAX_TILT, TRACK_MAX_TILT)
+	
 	# Smooth rotations
 	tilt = np.convolve(tilt, np.ones(SMOOTH_TILT_CNT_A)/SMOOTH_TILT_CNT_A, mode='same')
 	tilt = np.convolve(tilt, np.ones(SMOOTH_TILT_CNT_B)/SMOOTH_TILT_CNT_B, mode='same')
 	
-	# Limit max rotation
-	tilt = np.clip(tilt, -TRACK_MAX_TILT, TRACK_MAX_TILT)
+	tilt *= 3
+	
 
 	rotations = np.zeros_like(path)[:2]
 	rotations[0, 1:-1] = baseAngles

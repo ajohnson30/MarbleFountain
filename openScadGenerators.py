@@ -51,12 +51,7 @@ def getShapePathSet(path, rotations, profile, returnIndividual=False, returnFunc
 
 	return(returnFunc()(*outProfiles))
 
-
-
-
 # Screw generation
-
-
 def generateScrewSupports(inputPath, railSphere):
 	outSupports = sphere(0)
 	for idx in range(int(np.ceil(inputPath.shape[1]/SCREW_SUPPORT_GROUPING))):
@@ -109,7 +104,7 @@ def generateCenterScrewRotatingPart():
 	# return(innerRail + outerRail + linear_extrude(0.01)(circle(MARBLE_RAD, _fn=10)).rotate([90, 0, 90])) # Display profile
 
 	# Generate height and angle of path at all points
-	zPos = np.arange(0, SIZE_Z, SCREW_PITCH/SCREW_RESOLUTION)
+	zPos = np.arange(0, SIZE_Z+MARBLE_RAD, SCREW_PITCH/SCREW_RESOLUTION)
 	angle = zPos/SCREW_PITCH*2*np.pi
 	zPos += np.sin(zPos*0.7)*1 # Subtely vary Z height to add interest
 	zPos -= zOffsetOfSupportingRail # Lift all points slightly
@@ -180,6 +175,47 @@ def generateCenterScrewRotatingPart():
 
 	return(outputScrew)
 
+def generateScrewPathJoins(angle):
+	# Define base objects
+	railSphere = sphere(TRACK_RAD, _fn=UNIVERSAL_FN)
+	outputGeometry = sphere(0)
+
+	# Calculate constants
+	netRad = MARBLE_RAD+TRACK_RAD
+	zOffsetOfSupportingRail = -np.sqrt(np.square(netRad) - np.square(SCREW_OUTER_TRACK_DIST))
+
+	vertRailDistFromSpiral = SCREW_OUTER_TRACK_DIST + SCREW_VERT_RAIL_MARGIN + TRACK_RAD*2
+	vertRailSideOffset = np.sqrt(np.square(netRad) - np.square(vertRailDistFromSpiral))
+
+	# vertRail = conv_hull()(railSphere, railSphere.translateZ(SIZE_Z))
+	# outputGeometry += vertRail.translate([-vertRailDistFromSpiral, -vertRailSideOffset, zOffsetOfSupportingRail])
+	# outputGeometry += vertRail.translate([-vertRailDistFromSpiral, +vertRailSideOffset, zOffsetOfSupportingRail])
+	
+
+	# leftRailPath = [[-vertRailDistFromSpiral, -vertRailSideOffset, zOffsetOfSupportingRail], [-vertRailDistFromSpiral, -vertRailSideOffset, SIZE_Z+zOffsetOfSupportingRail]]
+	# rightRailPath = [[-vertRailDistFromSpiral, +vertRailSideOffset, zOffsetOfSupportingRail], [-vertRailDistFromSpiral, -vertRailSideOffset, SIZE_Z+zOffsetOfSupportingRail]]
+	
+	# Init default rail path
+	railPath = np.zeros((3, 3))
+	railPath[0] = vertRailDistFromSpiral
+	railPath[1] = vertRailSideOffset
+	railPath[2] = zOffsetOfSupportingRail
+
+	# First point matches tracks
+	railPath[0, 0] = PT_SPACING
+	railPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
+	# railPath[2, 0] = MARBLE_RAD + zOffsetOfSupportingRail
+
+	railPath[2, -1] = SIZE_Z
+	outputGeometry += getShapePathSet(railPath, None, railSphere)
+	
+	rightRail = deepcopy(railPath)
+	rightRail[1] *= -1
+	outputGeometry += getShapePathSet(rightRail, None, railSphere)
+
+	return(outputGeometry.translateX(SCREW_RAD).rotateZ(180.0*angle/np.pi))
+
+# Generate track geometry
 def generateTrackFromPath(path, rotations):
 	lowerDist = TRACK_SUPPORT_RAD*2
 	trackToPathDist = MARBLE_RAD + TRACK_RAD
@@ -283,7 +319,7 @@ def calculateAttractiveSupportForces(currentColumns, fooCol):
 
 		if distance < 1e-6: distance = 1e-6 # No super low distances (leads to massive acceleration)
 
-		attraction = SUPPORT_ATTRACTION_CONSTANT * np.sqrt(cmpCol.size) / pow(distance, 3) 
+		attraction = SUPPORT_ATTRACTION_CONSTANT * cmpCol.size / pow(distance, 3) 
 		attractiveForces += attraction * posDiff/distance
 
 	return attractiveForces
@@ -335,7 +371,7 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 
 			# Calculate acceleration based purely on force and size
 			fooCol.sumAcc = netForce
-			fooCol.sumAcc /= fooCol.size
+			fooCol.sumAcc /= np.sqrt(np.clip(fooCol.size, 2, 15))
 			accMag = magnitude(fooCol.sumAcc)
 			if accMag > MAX_PARTICLE_ACC:
 				fooCol.sumAcc = fooCol.sumAcc*MAX_PARTICLE_ACC/accMag
@@ -503,11 +539,14 @@ def generateSupports(supportCols):
 		for fooIdx in range(ptCnt):
 			fooPos = fooCol.posHist[fooIdx]
 
-			if fooIdx == 0 and len(fooCol.mergedFrom) == 0:
-				outProfiles.append(sphere(TRACK_RAD, _fn=UNIVERSAL_FN).translate(fooCol.posHist[0]))
-			else:
-				fooProfile = linear_extrude(0.05)(circle(getColumnRad(sizeList[fooIdx]))).translate(fooPos)
-				outProfiles.append(fooProfile)
+			# outProfiles.append(sphere(getColumnRad(sizeList[fooIdx]), _fn=UNIVERSAL_FN).translate(fooCol.posHist[0]))
+			outProfiles.append(sphere(getColumnRad(sizeList[fooIdx]), _fn=UNIVERSAL_FN).translate(fooPos))
+
+			# if fooIdx == 0 and len(fooCol.mergedFrom) == 0:
+			# 	outProfiles.append(sphere(TRACK_RAD, _fn=UNIVERSAL_FN).translate(fooPos))
+			# else:
+			# 	fooProfile = linear_extrude(0.05)(circle(getColumnRad(sizeList[fooIdx]))).translate(fooPos)
+			# 	outProfiles.append(fooProfile)
 
 		# Chain hull profiles together
 		supports += chain_hull()(*outProfiles)

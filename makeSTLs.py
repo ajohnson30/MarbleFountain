@@ -12,7 +12,7 @@ for f in files:
         of = f.replace('.scad', '.stl') # name of the outfile .stl
         # cmd = f"openscad -o ./models/{of} --export-format binstl ./output/{f}"
 
-        cmd = f"~/install/OpenSCAD.AppImage -o ./{WORKING_DIR}/fast_{of} --enable=fast-csg --export-format binstl ./{WORKING_DIR}/{f}"
+        cmd = f"~/install/OpenSCAD.AppImage --enable=fast-csg  -o ./{WORKING_DIR}/fast_{of} --export-format binstl ./{WORKING_DIR}/{f}"
         # cmd = f"~/install/OpenSCAD.AppImage -o ./{WORKING_DIR}/fast_{of} --export-format binstl ./{WORKING_DIR}/{f}"
         
         tasks.append(sp.Popen(cmd, shell=True))

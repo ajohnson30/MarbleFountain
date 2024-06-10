@@ -23,23 +23,43 @@ ax.set_zlabel('Z')
 
 # nextPt = np.array([ random()*xSize, random()*ySize, -ii*dropPerSegment ])
 
-targetHeights = SIZE_Z - np.arange(0, SIZE_Z, SIZE_Z/POINT_COUNT)
+targetHeights = SIZE_Z - np.linspace(0, SIZE_Z, POINT_COUNT)
 
 # Generate initial path
 pathList = []
 for pathIdx in range(PATH_COUNT):
-    path = randomPath(INIT_PATH_PTS, BOUNDING_BOX)
-    path[2, :] = targetHeights[:INIT_PATH_PTS]
+    path = randomPath(POINT_COUNT, BOUNDING_BOX)
+    path[2, :] = targetHeights[:POINT_COUNT]
+    pathList.append(path)
+
+# Generate set points at start and end of track
+setPointIndexList = []
+setPointList = []
+for pathIdx in range(PATH_COUNT):
+    # Calculate 
+    setPointIndices = np.zeros(LOCKED_PT_CNT*2, dtype=np.int32)
+    setPointIndices[:LOCKED_PT_CNT] = np.arange(LOCKED_PT_CNT)
+    setPointIndices[-LOCKED_PT_CNT:] = np.arange(POINT_COUNT-LOCKED_PT_CNT, POINT_COUNT)
+
+    setPoints = np.zeros((4, LOCKED_PT_CNT*2), dtype=np.double)
+
+    forceDecay = 2 * (np.cos(np.linspace(0.0, np.pi/3, LOCKED_PT_CNT+1))[:-1] - 0.5)
+    setPoints[3, :LOCKED_PT_CNT] = forceDecay
+    setPoints[3, -LOCKED_PT_CNT:] = np.flip(forceDecay)
+    setPoints[3] = 1.0
 
     # Init first and last points
     angle = np.pi*2*pathIdx/PATH_COUNT
-    pointRads = np.linspace(SCREW_RAD, LOCKED_PT_CNT*PT_SPACING+SCREW_RAD, LOCKED_PT_CNT)
-    path[0, :LOCKED_PT_CNT] = np.cos(angle)*pointRads + SIZE_X/2
-    path[1, :LOCKED_PT_CNT] = np.sin(angle)*pointRads + SIZE_Y/2
-    path[0, -LOCKED_PT_CNT:] = np.flip(np.cos(angle)*pointRads) + SIZE_X/2
-    path[1, -LOCKED_PT_CNT:] = np.flip(np.sin(angle)*pointRads) + SIZE_Y/2
+    pointRads = np.linspace(SCREW_RAD+PT_SPACING, LOCKED_PT_CNT*PT_SPACING + SCREW_RAD, LOCKED_PT_CNT)
+    setPoints[0, :LOCKED_PT_CNT] = np.cos(angle)*pointRads + SIZE_X/2
+    setPoints[1, :LOCKED_PT_CNT] = np.sin(angle)*pointRads + SIZE_Y/2
+    setPoints[0, -LOCKED_PT_CNT:] = np.flip(np.cos(angle)*pointRads) + SIZE_X/2
+    setPoints[1, -LOCKED_PT_CNT:] = np.flip(np.sin(angle)*pointRads) + SIZE_Y/2
+    setPoints[2] = targetHeights[setPointIndices]
 
-    pathList.append(path)
+    # Save points
+    setPointIndexList.append(setPointIndices)
+    setPointList.append(setPoints)
 
 # Calculate no go points
 centerPoints = np.arange(0, SIZE_Z, PT_SPACING)
@@ -49,6 +69,8 @@ centerPoints[1, :] = SIZE_Y/2
 
 # Move points to local minima
 for pathIteration in range(PATH_ITERS):
+    pathFrac = pathIteration/PATH_ITERS
+
     for pathIdx in range(len(pathList)):
         path = pathList[pathIdx]
         
@@ -56,34 +78,41 @@ for pathIteration in range(PATH_ITERS):
         forceSet = np.zeros_like(path)
 
         # Pull towards bounding box
-        boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, 100.0, 5.0, axCount=3)
+        boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, 30.0, 2.0, axCount=3)
 
         # Pull towards Z position
-        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.05, 5)
+        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.5, 5)
+        # targHeightForce += pullTowardsTargetSlope(path, -PT_DROP, 0.3, 1.0)
 
         # Normalize distances between points
-        pathNormForce = normalizePathDists(path, PT_SPACING, 0.2)
+        # pathXY = deepcopy(path)
+        # pathXY[2] = 0.0
+        # pathNormForce = normalizePathDists(pathXY, PT_SPACING, 10.0)
+
+        pathNormForce = normalizePathDists(path,  PT_SPACING, 1.0)
+        # pathNormForce = np.zeros_like(pathNormForce)
 
         # Repel away from own path
         noSelfIntersectionForce = repelPathFromSelf(path, 2, 10, ABSOLUTE_MIN_PT_DIST)
-        noSelfIntersectionForce = repelPathFromSelf(path, 10, 0.01, 100)
+        noSelfIntersectionForce = repelPathFromSelf(path, 5, 0.01, 10)
 
         # Limit path angle
-        pathAngleForce = correctPathAngle(path, 2.9, 3.2, 1.0)
-        pathAngleForce = correctPathAngle(path, 2.6, 3.2, 0.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
-        pathAngleForce = correctPathAngle(path, 2.4, 3.0, 0.1, diffPointOffsetCnt=3) # Apply smoothing function across more points
-        # pathAngleForce = correctPathAngle(path, 2.8, 3.2, 0.4, diffPointOffsetCnt=1, flatten=False) # Apply smoothing function across more points
+        pathAngleForce = correctPathAngle(path, 3.0, 3.14, 1.0)
+        pathAngleForce = correctPathAngle(path, 2.2, 3.1, 0.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        # pathAngleForce = correctPathAngle(path, 3.0, 3.1, 0.1, flatten=False)
+        # pathAngleForce = correctPathAngle(path, 2.4, 3.0, 0.1, diffPointOffsetCnt=3) # Apply smoothing function across more points
 
         # Repel away from other paths
         repelForce = np.zeros_like(path)
         for cmpIdx in range(len(pathList)):
             if pathIdx == cmpIdx: continue
-            repelForce += repelPoints(path, pathList[cmpIdx], 20, ABSOLUTE_MIN_PT_DIST*2) # Absolute required distance between points
+            repelForce += repelPoints(path, pathList[cmpIdx], 10.0, ABSOLUTE_MIN_PT_DIST) # Absolute required distance between points
+            repelForce += repelPoints(path, pathList[cmpIdx], 2.5, ABSOLUTE_MIN_PT_DIST*2) # Absolute required distance between points
             # repelForce[2] = np.clip(repelForce[2], -5, 5)
-            repelForce += repelPoints(path, pathList[cmpIdx], 0.01, 50)
+            # repelForce += repelPoints(path, pathList[cmpIdx], 0.01, 20)
         
         # Repel away from center lift
-        repelForce += repelPoints(path, centerPoints, 5.0, ABSOLUTE_MIN_PT_DIST+SCREW_RAD)
+        repelForce += repelPoints(path, centerPoints, 4.0, 2*ABSOLUTE_MIN_PT_DIST+SCREW_RAD)
 
         if False:
             ax = plt.figure().add_subplot(projection='3d')
@@ -108,12 +137,24 @@ for pathIteration in range(PATH_ITERS):
         sumForce = boundingBoxForce + targHeightForce + pathNormForce + noSelfIntersectionForce + pathAngleForce + repelForce
 
         if pathIteration in RESAMPLE_AT:
+            print(f"   ----- RESAMPLING -----")
             forceMag = magnitude(sumForce)
-            path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] = redistributePathByForce(path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT], sumForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT])
+            path = redistributePathByForce(path, sumForce)
             # path = redistributePathByForce(path, sumForce)
         else:
-            path[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] += sumForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT]
+            path += sumForce
 
+            # Pull towards set points
+            setPointIndices = setPointIndexList[pathIdx]
+            setPoints = setPointList[pathIdx]
+            setPtForces = setPoints[3] * (setPoints[:3] - path[:, setPointIndices])
+            
+            path[:, setPointIndices] += setPtForces
+
+            if False: # Do no go up
+                diff = np.diff(path[2])
+                inc = np.where(diff > 0)
+                path[2, 1:][inc] = path[2, :-1][inc]
 
         # Constant dist moves that gradually converge
         if SET_ITERATION_MOVE_DISTS:
@@ -153,7 +194,7 @@ for pathIteration in range(PATH_ITERS):
                 ))
             
             if SET_ITERATION_MOVE_DISTS:
-                print("{:4.5}: ".format(moveDist), end='')
+                print("{:4.5f}: ".format(moveDist), end='')
 
         
 # Use spline interpolation for additonal points
@@ -198,7 +239,7 @@ for pathIdx in range(len(pathList)):
 
     # ax.scatter(*centerPoints)
 
-    # ax.scatter(*path)
+    ax.scatter(*path)
 
     # ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
     # ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
