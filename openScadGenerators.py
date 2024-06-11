@@ -124,8 +124,8 @@ def generateCenterScrewRotatingPart():
 	bottomRailPath = deepcopy(basePath)
 	bottomRailPath[:2] *= SCREW_RAD + SCREW_OUTER_TRACK_DIST
 	bottomRailPath[2] += zOffsetOfSupportingRail
-	bottomRailPath[2, -SCREW_TOP_PUSH_PTS:] = SIZE_Z+MARBLE_RAD + zOffsetOfSupportingRail
-	bottomRailPath[2, -1] = SIZE_Z+MARBLE_RAD
+	bottomRailPath[2, bottomRailPath[2] > SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
+	bottomRailPath[2, -1] = SIZE_Z
 	outputScrew += getShapePathSet(bottomRailPath, None, railSphere)
 
 	# Base rail
@@ -141,7 +141,7 @@ def generateCenterScrewRotatingPart():
 	insideRailPath[:2] *= SCREW_RAD - MARBLE_RAD - TRACK_RAD
 	insideRailPath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD - MARBLE_RAD - TRACK_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:]) # Gradually push out marble
 	# Gradually decrease height of top points
-	insideRailPath[2, -SCREW_TOP_PUSH_PTS:] = SIZE_Z+MARBLE_RAD
+	insideRailPath[2, insideRailPath[2] > SIZE_Z] = SIZE_Z
 	# insideRailPath[2, -SCREW_TOP_PUSH_PTS:] += np.linspace(0, zOffsetOfSupportingRail, SCREW_TOP_PUSH_PTS) * 0.6
 	# insideRailPath[2, -int(SCREW_TOP_PUSH_PTS/2):] += np.linspace(0, zOffsetOfSupportingRail, int(SCREW_TOP_PUSH_PTS/2)) * 0.4
 	outputScrew += getShapePathSet(insideRailPath, None, railSphere)
@@ -167,7 +167,7 @@ def generateCenterScrewRotatingPart():
 
 	# Add center shaft
 	maxSupportHeight = np.max(insideRailPath[2]) - SCREW_RAD
-	outputScrewSupports = cylinder(SCREW_RAD/2, SCREW_RAD/2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	outputScrewSupports = cylinder(SCREW_RAD, SCREW_RAD/2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
 	# Supports
@@ -189,6 +189,7 @@ def generateCenterScrewRotatingPart():
 
 	return(outputScrew + outputScrewSupports)
 
+# Connect path to  screw
 def generateScrewPathJoins(angle):
 	# Define base objects
 	railSphere = sphere(TRACK_RAD, _fn=UNIVERSAL_FN)
@@ -209,8 +210,12 @@ def generateScrewPathJoins(angle):
 	# leftRailPath = [[-vertRailDistFromSpiral, -vertRailSideOffset, zOffsetOfSupportingRail], [-vertRailDistFromSpiral, -vertRailSideOffset, SIZE_Z+zOffsetOfSupportingRail]]
 	# rightRailPath = [[-vertRailDistFromSpiral, +vertRailSideOffset, zOffsetOfSupportingRail], [-vertRailDistFromSpiral, -vertRailSideOffset, SIZE_Z+zOffsetOfSupportingRail]]
 	
+	supportPoints = []
+
+	PT_CNT = 5
+
 	# Init default rail path
-	railPath = np.zeros((3, 3))
+	railPath = np.zeros((3, 2+PT_CNT*2))
 	railPath[0] = vertRailDistFromSpiral
 	railPath[1] = vertRailSideOffset
 	railPath[2] = zOffsetOfSupportingRail
@@ -218,14 +223,83 @@ def generateScrewPathJoins(angle):
 	# First point matches tracks
 	railPath[0, 0] = PT_SPACING
 	railPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
-	# railPath[2, 0] = MARBLE_RAD + zOffsetOfSupportingRail
+	railPath[2, 0] = -netRad*np.sin(TRACK_CONTACT_ANGLE)
 
-	railPath[2, -1] = SIZE_Z
+	entryRad = netRad+TRACK_RAD/4
+
+	# Lower part of semicircular feature
+	bottomAngles = np.linspace(-TRACK_CONTACT_ANGLE, 0, PT_CNT)
+	railPath[1, 1:PT_CNT+1] = entryRad*np.cos(bottomAngles)
+	railPath[2, 1:PT_CNT+1] = entryRad*np.sin(bottomAngles)
+
+	# Upper part of semicircular feature
+	distMM = 10
+	bottomAngles = np.linspace(0, 0, PT_CNT)
+	railPath[1, PT_CNT+1:2*PT_CNT+1] = (np.cos(np.linspace(0, np.pi, PT_CNT))+1)/2 * (entryRad-vertRailSideOffset) + vertRailSideOffset
+	railPath[2, PT_CNT+1:2*PT_CNT+1] = np.linspace(0, distMM, PT_CNT)
+
+	# Last point at top 
+	railPath[2, -1] = SIZE_Z + entryRad*np.sin(-TRACK_CONTACT_ANGLE) # Mate with bottom point on top loop
+
+	# Save, mirror, save
 	outputGeometry += getShapePathSet(railPath, None, railSphere)
-	
 	rightRail = deepcopy(railPath)
 	rightRail[1] *= -1
 	outputGeometry += getShapePathSet(rightRail, None, railSphere)
+
+	# Add legs
+	legPath = np.zeros((3, 4))
+	legPath[:, 0] = railPath[:, 1] # Awful code but I'm tired and want to print this tomorrow
+	legPath[:, 1] = railPath[:, 1]
+	legPath[:, 2] = railPath[:, 1]
+	legPath[:, 3] = railPath[:, 1]
+
+	legPath[2, 1] = BASE_OF_MODEL
+	legPath[:, 2] = railPath[:, 0]
+	legPath[2, 2] -= TRACK_RAD
+
+
+	# Save, mirror, save
+	outputGeometry += getShapePathSet(legPath, None, railSphere)
+	legPath = deepcopy(legPath)
+	legPath[1] *= -1
+	outputGeometry += getShapePathSet(legPath, None, railSphere)
+
+
+	# Add top loop
+	UPPER_PT_CNT = 10
+	railPath = np.zeros((3, 1+UPPER_PT_CNT))
+	railPath[0] = vertRailDistFromSpiral
+
+	# First point matches tracks
+	railPath[0, 0] = PT_SPACING
+	railPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
+	railPath[2, 0] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
+	
+	# Circular feature at top
+	angleSet = np.linspace(-np.arccos(vertRailSideOffset/entryRad), np.pi/2, UPPER_PT_CNT)
+	railPath[1, 1:UPPER_PT_CNT+1] = entryRad*np.cos(angleSet)
+	railPath[2, 1:UPPER_PT_CNT+1] = SIZE_Z + entryRad*np.sin(angleSet)
+
+	# Save, mirror, save
+	outputGeometry += getShapePathSet(railPath, None, railSphere)
+	rightRail = deepcopy(railPath)
+	rightRail[1] *= -1
+	outputGeometry += getShapePathSet(rightRail, None, railSphere)
+
+	# Add legs
+	legPath = np.zeros((3, 3))
+	legPath[:, 0] = railPath[:, 1]
+	legPath[:, 1] = railPath[:, 0]
+	legPath[2, 1] -= TRACK_RAD
+	legPath[:, 2] = railPath[:, 1]
+	legPath[2, 2] -= MARBLE_RAD*2
+
+	# Save, mirror, save
+	outputGeometry += getShapePathSet(legPath, None, railSphere)
+	legPath = deepcopy(legPath)
+	legPath[1] *= -1
+	outputGeometry += getShapePathSet(legPath, None, railSphere)
 
 	return(outputGeometry.translateX(SCREW_RAD).rotateZ(180.0*angle/np.pi))
 

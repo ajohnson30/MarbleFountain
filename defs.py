@@ -55,11 +55,11 @@ POS_DIFF_MIN = MARBLE_RAD # XY diff of min repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3 # XY diff of max repulsion force
 
 SUPPORT_VIS = True # Output support gen visualization
-UNIVERSAL_FN = 6 # How many sides for each triangle
+UNIVERSAL_FN = 10 # How many sides for each triangle
 HIGHER_RES_FN = 20
 
 # Screw lift
-SCREW_RAD = 16 # Center of rotation to center of marble on track
+SCREW_RAD = 12 # Center of rotation to center of marble on track
 SCREW_PITCH = 16 # mm per rev
 SCREW_RESOLUTION = 30 # pts per rev
 SCREW_SUPPORT_GROUPING = (4, 9)

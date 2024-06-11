@@ -31,7 +31,8 @@ outputAssembly = sphere(0)
 
 # # Generate actual path geometry
 for path, rot in zip(pathList, rotList):
-    outputAssembly += generateTrackFromPath(path, rot)
+    # outputAssembly += generateTrackFromPath(path, rot)
+    outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
 
 # outputAssembly.save_as_scad(WORKING_DIR + "out.scad")
 
@@ -75,7 +76,7 @@ if False:
 
 # Show screw and marble for example
 screwLoadAssembly = generateCenterScrewRotatingPart()#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
-# screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
+screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
 
 for pathIdx in range(PATH_COUNT):
 	angle = np.pi*2*pathIdx/PATH_COUNT
