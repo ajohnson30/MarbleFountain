@@ -54,15 +54,22 @@ def getShapePathSet(path, rotations, profile, returnIndividual=False, returnFunc
 # Screw generation
 def generateScrewSupports(inputPath, railSphere):
 	outSupports = sphere(0)
-	for idx in range(int(np.ceil(inputPath.shape[1]/SCREW_SUPPORT_GROUPING))):
-		points = inputPath[:, idx*SCREW_SUPPORT_GROUPING:(idx+1)*SCREW_SUPPORT_GROUPING]
-		
+	# for idx in range(int(np.ceil(inputPath.shape[1]/SCREW_SUPPORT_GROUPING))):
+	idx = 0
+	while True:
+		groupSize = int(np.random.rand()*np.diff(SCREW_SUPPORT_GROUPING) + SCREW_SUPPORT_GROUPING[0])
+		points = inputPath[:, idx:idx+groupSize]
+		if points.shape[1] == 0:
+			break
+
+		idx += groupSize
+
 		# Move towards center
 		joinPoint = np.average(points, axis=1)
 		joinPoint[:2] /= 2
 		joinPoint[2] -= SCREW_RAD/2
 
-		if joinPoint[2] > SCREW_RAD/2:
+		if joinPoint[2] > SCREW_RAD/2 + BASE_OF_MODEL + TRACK_RAD:
 			# Join midPoint to center
 			centerPoint = deepcopy(joinPoint)
 			centerPoint[:2] = 0
@@ -73,9 +80,9 @@ def generateScrewSupports(inputPath, railSphere):
 				railSphere.translate(joinPoint)
 			])
 		else:
-			joinPoint[2] = 0
+			joinPoint[2] = BASE_OF_MODEL + TRACK_RAD
 			outSupports += conv_hull()(*[
-				railSphere.translate([0,0,0]),
+				railSphere.translate([0,0,BASE_OF_MODEL + TRACK_RAD]),
 				railSphere.translate(joinPoint)
 			])
 
@@ -84,7 +91,6 @@ def generateScrewSupports(inputPath, railSphere):
 				railSphere.translate(joinPoint),
 				railSphere.translate(points[:, ptIdx])
 			])
-			
 
 		# 	outSupports += railSphere.translate(points[:, ptIdx])
 		# outSupports += railSphere.translate(centerPoint)
@@ -104,10 +110,10 @@ def generateCenterScrewRotatingPart():
 	# return(innerRail + outerRail + linear_extrude(0.01)(circle(MARBLE_RAD, _fn=10)).rotate([90, 0, 90])) # Display profile
 
 	# Generate height and angle of path at all points
-	zPos = np.arange(0, SIZE_Z+MARBLE_RAD, SCREW_PITCH/SCREW_RESOLUTION)
+	zPos = np.arange(0, SIZE_Z+MARBLE_RAD + SCREW_TOP_PUSH_PTS*SCREW_PITCH/SCREW_RESOLUTION, SCREW_PITCH/SCREW_RESOLUTION)
 	angle = zPos/SCREW_PITCH*2*np.pi
-	zPos += np.sin(zPos*0.7)*1 # Subtely vary Z height to add interest
-	zPos -= zOffsetOfSupportingRail # Lift all points slightly
+	# zPos += np.sin(zPos*0.7)*1 # Subtely vary Z height to add interest
+	# zPos -= zOffsetOfSupportingRail # Lift all points slightly
 
 	basePath = np.zeros((3, zPos.shape[0]))
 	basePath[0] = np.cos(angle)
@@ -118,11 +124,13 @@ def generateCenterScrewRotatingPart():
 	bottomRailPath = deepcopy(basePath)
 	bottomRailPath[:2] *= SCREW_RAD + SCREW_OUTER_TRACK_DIST
 	bottomRailPath[2] += zOffsetOfSupportingRail
+	bottomRailPath[2, -SCREW_TOP_PUSH_PTS:] = SIZE_Z+MARBLE_RAD + zOffsetOfSupportingRail
+	bottomRailPath[2, -1] = SIZE_Z+MARBLE_RAD
 	outputScrew += getShapePathSet(bottomRailPath, None, railSphere)
 
 	# Base rail
-	baseRailPath = deepcopy(bottomRailPath[:, SCREW_RESOLUTION:(SCREW_RESOLUTION*2 +1)])
-	baseRailPath[2] = 0.00000001
+	baseRailPath = deepcopy(bottomRailPath[:, :SCREW_RESOLUTION+1])
+	baseRailPath[2] = zOffsetOfSupportingRail
 	outputScrew += getShapePathSet(baseRailPath, None, railSphere)
 	# baseRailPath = deepcopy(bottomRailPath[:, 14:SCREW_RESOLUTION+1]) # If I do this all in 1 go it dies for some reason
 	# baseRailPath[2] = 0.00000001
@@ -133,8 +141,9 @@ def generateCenterScrewRotatingPart():
 	insideRailPath[:2] *= SCREW_RAD - MARBLE_RAD - TRACK_RAD
 	insideRailPath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD - MARBLE_RAD - TRACK_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:]) # Gradually push out marble
 	# Gradually decrease height of top points
-	insideRailPath[2, -SCREW_TOP_PUSH_PTS:] += np.linspace(0, zOffsetOfSupportingRail, SCREW_TOP_PUSH_PTS) * 0.6
-	insideRailPath[2, -int(SCREW_TOP_PUSH_PTS/2):] += np.linspace(0, zOffsetOfSupportingRail, int(SCREW_TOP_PUSH_PTS/2)) * 0.4
+	insideRailPath[2, -SCREW_TOP_PUSH_PTS:] = SIZE_Z+MARBLE_RAD
+	# insideRailPath[2, -SCREW_TOP_PUSH_PTS:] += np.linspace(0, zOffsetOfSupportingRail, SCREW_TOP_PUSH_PTS) * 0.6
+	# insideRailPath[2, -int(SCREW_TOP_PUSH_PTS/2):] += np.linspace(0, zOffsetOfSupportingRail, int(SCREW_TOP_PUSH_PTS/2)) * 0.4
 	outputScrew += getShapePathSet(insideRailPath, None, railSphere)
 		
 	# Base inside rail
@@ -148,24 +157,29 @@ def generateCenterScrewRotatingPart():
 	# baseInsideRailRads[:decreaseRadCnt] -= MARBLE_RAD+TRACK_RAD
 	# baseInsideRailRads[decreaseRadCnt:decreaseRadCnt*2] -= np.flip(decreaseRadMags)
 	baseInsideRailPath[:2] *= baseInsideRailRads
-	baseInsideRailPath[2] = -zOffsetOfSupportingRail # Set all Z to starting pos
+	baseInsideRailPath[2] = 0.0 # Set all Z to starting pos
 
 	# Start at intersection of bottom rail
-	intersectionIdx = np.where(bottomRailPath[2] > -zOffsetOfSupportingRail)[0][0] # Find intersection
+	intersectionIdx = np.where(bottomRailPath[2] > 0.0)[0][0] # Find intersection
 	baseInsideRailPath = baseInsideRailPath[:, intersectionIdx:] # Truncate rail
 	baseInsideRailPath[:, 0] = bottomRailPath[:, intersectionIdx] # Set starting point to intersection
 	outputScrew += getShapePathSet(baseInsideRailPath, None, railSphere)
 
-	# Supports
-	outputScrew += generateScrewSupports(bottomRailPath, railSphere)
-	outputScrew += generateScrewSupports(baseRailPath, railSphere)
-	outputScrew += generateScrewSupports(insideRailPath, railSphere)
-	outputScrew += generateScrewSupports(baseInsideRailPath, railSphere)
-
 	# Add center shaft
 	maxSupportHeight = np.max(insideRailPath[2]) - SCREW_RAD
-	outputScrew += cylinder(maxSupportHeight+TRACK_RAD, TRACK_RAD*2, TRACK_RAD*0.95, _fn=UNIVERSAL_FN).translateZ(-TRACK_RAD)
+	outputScrewSupports = cylinder(SCREW_RAD/2, SCREW_RAD/2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
+	# Supports
+	outputScrewSupports += generateScrewSupports(bottomRailPath, railSphere)
+	outputScrewSupports += generateScrewSupports(baseRailPath, railSphere)
+	outputScrewSupports += generateScrewSupports(insideRailPath, railSphere)
+	outputScrewSupports += generateScrewSupports(baseInsideRailPath, railSphere)
+
+	# Motor Shaft Cutout
+	if MOTOR_TYPE == 'SMALL_DC':
+		outputScrewSupports -= (cylinder(12, 1.5, 1.5, _fn=HIGHER_RES_FN) & cube([10, 10, 8]).translate([1.5-2.4, -5, 0])).translateZ(BASE_OF_MODEL-2)
+		
 	# MarblePath for viz
 	if False:
 		marblePath = deepcopy(basePath)
@@ -173,7 +187,7 @@ def generateCenterScrewRotatingPart():
 		marblePath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:])
 		outputScrew += getShapePathSet(marblePath, None, sphere(MARBLE_RAD, _fn=UNIVERSAL_FN))
 
-	return(outputScrew)
+	return(outputScrew + outputScrewSupports)
 
 def generateScrewPathJoins(angle):
 	# Define base objects
@@ -552,6 +566,8 @@ def generateSupports(supportCols):
 		supports += chain_hull()(*outProfiles)
 		# for foo in outProfiles: supports += foo # DEBUG
 
+		if fooCol.mergingInto == -1:
+			basePositions.append(fooCol.posHist[-1])
 
 		# # Join columns
 		# for mergeIdx in fooCol.mergedFrom:
@@ -562,4 +578,29 @@ def generateSupports(supportCols):
 		# 		linear_extrude(0.05)(circle(getColumnRad(mergedCol.mergedSize))).translate(mergedCol.posHist[-1]),
 		# 	]
 		# 	supports += chain_hull()(*outProfiles)
+
+	baseSpheres = []
+	for foo in basePositions:
+		foo[2] = BASE_OF_MODEL - BASE_THICKNESS/2
+		baseSpheres.append(sphere(BASE_THICKNESS/2, _fn=UNIVERSAL_FN).translate(foo))
+	supports += conv_hull()(*baseSpheres)
+
+	# Cutout for motor
+	if MOTOR_TYPE == 'SMALL_DC':
+		cutout = cylinder(8, 1.5, 1.5, _fn=HIGHER_RES_FN)
+		frontX = 12
+		frontY = 10
+		maxHeight = 30
+		lipDepth = 2
+		lipThickness = 2
+
+		faceCutout = cube([frontX, frontY, maxHeight])
+		# faceCutout += cube([frontX-lipDepth*2, frontY-lipDepth*2, maxHeight+lipThickness*2]).translate([lipDepth, lipDepth, 0])
+
+		cutout += faceCutout.translate([-frontX/2, -frontY/2, -maxHeight-lipThickness+BASE_OF_MODEL])
+		cutout += cylinder(maxHeight+lipThickness*2, frontY/2-lipDepth, frontY/2-lipDepth).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+
+	supports -= cutout.translate(SCREW_POS)
+
 	return(supports)
+

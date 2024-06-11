@@ -58,6 +58,8 @@ if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
 supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
 outputAssembly += generateSupports(supportColumns)
 
+
+
 # Generate base plate connections
 
 # Visualize all support and no-go points
@@ -71,14 +73,14 @@ if False:
 	for fooPath in pathList:
 		outputAssembly += getShapePathSet(fooPath, np.zeros_like(fooPath), testProfile)
 
-# # Show screw and marble for example
-# screwLoadAssembly = sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
-# screwLoadAssembly += generateCenterScrewRotatingPart().translateZ(-(MARBLE_RAD+TRACK_RAD))
+# Show screw and marble for example
+screwLoadAssembly = generateCenterScrewRotatingPart()#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
+# screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
 
-# for pathIdx in range(PATH_COUNT):
-# 	angle = np.pi*2*pathIdx/PATH_COUNT
-# 	screwLoadAssembly += generateScrewPathJoins(angle)
-# screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
+for pathIdx in range(PATH_COUNT):
+	angle = np.pi*2*pathIdx/PATH_COUNT
+	screwLoadAssembly += generateScrewPathJoins(angle)
+screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 
 
-(outputAssembly).save_as_scad(WORKING_DIR + "out.scad")
+(screwLoadAssembly + outputAssembly).save_as_scad(WORKING_DIR + "out.scad")

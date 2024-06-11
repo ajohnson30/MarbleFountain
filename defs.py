@@ -3,16 +3,17 @@ import numpy as np
 # Overall size of box to generate path in
 SIZE_X = 195
 SIZE_Y = 120
-SIZE_Z = 200
+SIZE_Z = 20
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
+BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 5 # distance from one point to the next
 
 PT_DROP = 1.0 # target z drop per pt
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 
-PATH_COUNT = 3 # Numer of paths to generate
+PATH_COUNT = 2 # Numer of paths to generate
 
 # Path gen optimization
 PATH_ITERS = 300 # Number of iterations to optimize too
@@ -55,17 +56,21 @@ POS_DIFF_MAX = MARBLE_RAD*3 # XY diff of max repulsion force
 
 SUPPORT_VIS = True # Output support gen visualization
 UNIVERSAL_FN = 6 # How many sides for each triangle
+HIGHER_RES_FN = 20
 
 # Screw lift
 SCREW_RAD = 16 # Center of rotation to center of marble on track
 SCREW_PITCH = 16 # mm per rev
 SCREW_RESOLUTION = 30 # pts per rev
-SCREW_SUPPORT_GROUPING = 5
+SCREW_SUPPORT_GROUPING = (4, 9)
 SCREW_OUTER_TRACK_DIST = 0.0 # How far out to place the bottom rail
 SCREW_TOP_PUSH_PTS = 10 # How many points at the top of the screw to push towards the outside
+
 # Entry and exit connections
 END_PATH_OFFSET = MARBLE_RAD * (1 + np.sin(TRACK_CONTACT_ANGLE))
 SCREW_VERT_RAIL_MARGIN = 0.4 # Margin between bottom rail and vertical lift supports
+
+MOTOR_TYPE = 'SMALL_DC'
 
 SCREW_POS = np.array([SIZE_X/2, SIZE_Y/2, 0.0])
 
