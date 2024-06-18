@@ -57,11 +57,11 @@ centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
 noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
 
 
-# # Generate supports
-# visPath = None
-# if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
-# supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
-# supportGeometry = generateSupports(supportColumns)
+# Generate supports
+visPath = None
+if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
+supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
+supportGeometry = generateSupports(supportColumns)
 
 
 
@@ -91,9 +91,9 @@ screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 rotatingScrew = generateCenterScrewRotatingPart().translate(SCREW_POS)
 os.makedirs(WORKING_DIR+'test/', exist_ok=True)
 
-# (screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
+(screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
 
-# (screwLoadAssembly + outputAssembly + supportGeometry + rotatingScrew).save_as_scad(WORKING_DIR + "test/AllComponentsTogether.scad")
-# ((supportGeometry) & marblePathGeometry).save_as_scad(WORKING_DIR + "test/supportIntersection.scad")
-# (supportGeometry).save_as_scad(WORKING_DIR + "test/supports.scad")
+(screwLoadAssembly + outputAssembly + supportGeometry + rotatingScrew).save_as_scad(WORKING_DIR + "test/AllComponentsTogether.scad")
+((supportGeometry) & marblePathGeometry).save_as_scad(WORKING_DIR + "test/supportIntersection.scad")
+(supportGeometry).save_as_scad(WORKING_DIR + "test/supports.scad")
 (outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")
