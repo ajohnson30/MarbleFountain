@@ -43,10 +43,11 @@ for pathIdx in range(PATH_COUNT):
 
     setPoints = np.zeros((4, LOCKED_PT_CNT*2), dtype=np.double)
 
-    forceDecay = 2 * (np.cos(np.linspace(0.0, np.pi/3, LOCKED_PT_CNT+1))[:-1] - 0.5)
-    setPoints[3, :LOCKED_PT_CNT] = forceDecay
-    setPoints[3, -LOCKED_PT_CNT:] = np.flip(forceDecay)
+    # forceDecay = 2 * (np.cos(np.linspace(0.0, np.pi/3, LOCKED_PT_CNT+1))[:-1] - 0.5)
+    # setPoints[3, :LOCKED_PT_CNT] = forceDecay
+    # setPoints[3, -LOCKED_PT_CNT:] = np.flip(forceDecay)
     setPoints[3] = 1.0
+    setPoints[3, LOCKED_PT_CNT:LOCKED_PT_CNT+2] = 0.1
 
     # Init first and last points
     angle = np.pi*2*pathIdx/PATH_COUNT
@@ -93,12 +94,13 @@ for pathIteration in range(PATH_ITERS):
         # pathNormForce = np.zeros_like(pathNormForce)
 
         # Repel away from own path
-        noSelfIntersectionForce = repelPathFromSelf(path, 2, 10, ABSOLUTE_MIN_PT_DIST)
+        noSelfIntersectionForce = repelPathFromSelf(path, 3, 10, ABSOLUTE_MIN_PT_DIST*2)
         noSelfIntersectionForce = repelPathFromSelf(path, 5, 0.01, 10)
 
         # Limit path angle
-        pathAngleForce = correctPathAngle(path, 3.0, 3.14, 1.0)
-        pathAngleForce = correctPathAngle(path, 2.2, 3.1, 0.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.0)
+        # pathAngleForce = correctPathAngle(path, 2.0, 3.1, 1.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        # pathAngleForce = correctPathAngle(path, 1.0, 3.1, 0.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 3.0, 3.1, 0.1, flatten=False)
         # pathAngleForce = correctPathAngle(path, 2.4, 3.0, 0.1, diffPointOffsetCnt=3) # Apply smoothing function across more points
 
@@ -107,7 +109,7 @@ for pathIteration in range(PATH_ITERS):
         for cmpIdx in range(len(pathList)):
             if pathIdx == cmpIdx: continue
             repelForce += repelPoints(path, pathList[cmpIdx], 10.0, ABSOLUTE_MIN_PT_DIST) # Absolute required distance between points
-            repelForce += repelPoints(path, pathList[cmpIdx], 2.5, ABSOLUTE_MIN_PT_DIST*2) # Absolute required distance between points
+            repelForce += repelPoints(path, pathList[cmpIdx], 2.5, ABSOLUTE_MIN_PT_DIST*3) # Absolute required distance between points
             # repelForce[2] = np.clip(repelForce[2], -5, 5)
             # repelForce += repelPoints(path, pathList[cmpIdx], 0.01, 20)
         

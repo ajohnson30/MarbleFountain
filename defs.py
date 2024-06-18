@@ -3,21 +3,21 @@ import numpy as np
 # Overall size of box to generate path in
 SIZE_X = 195
 SIZE_Y = 120
-SIZE_Z = 20
+SIZE_Z = 190
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 5 # distance from one point to the next
 
-PT_DROP = 1.0 # target z drop per pt
+PT_DROP = 1.0# target z drop per pt
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 
 PATH_COUNT = 2 # Numer of paths to generate
 
 # Path gen optimization
 PATH_ITERS = 300 # Number of iterations to optimize too
-RESAMPLE_AT = [20, 40, 60] # Resample the path to alleviate knots at this number of iterations
+RESAMPLE_AT = [20] # Resample the path to alleviate knots at this number of iterations
 SET_ITERATION_MOVE_DISTS = True # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
 RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
@@ -37,7 +37,7 @@ SMOOTH_TILT_CNT_B = 3 # And then we do it again
 TRACK_SUPPORT_RAD = 0.75 # Initial radius of track support
 TRACK_SUPPORT_MAX_RAD = 2.0 # Maximum support radius
 SUPPORT_LAYER_HEIGHT = 1.0 # Layer height
-MAX_PARTICLE_VEL = SUPPORT_LAYER_HEIGHT*1.5 # Maximum XY motion between each layer
+MAX_PARTICLE_VEL = SUPPORT_LAYER_HEIGHT*2.0 # Maximum XY motion between each layer
 MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*2 # Maximum XY acceleration between each layer (except in case of emergency to avoid collision)
 MERGE_RAD = MAX_PARTICLE_VEL # Radius to merge points beneath
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join

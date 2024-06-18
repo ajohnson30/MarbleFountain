@@ -22,6 +22,9 @@ from openScadGenerators import *
 outputAssembly = generateCenterScrewRotatingPart()
 outputAssembly.save_as_scad(WORKING_DIR + "screw.scad")
 
+outputAssembly = cylinder(30, 5, 2)
+outputAssembly.save_as_scad(WORKING_DIR + "foot.scad")
+
 
 # Load path data
 pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
@@ -42,6 +45,8 @@ supportPoints = np.concatenate(supportAnchors, axis=1)
 
 # Get list of all no-go points
 noGoPoints = np.concatenate([path for path in pathList], axis=1) # Subdivide to get intermediate points
+noGoPoints -= MARBLE_RAD
+
 # noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
 # Calculate lift exclusion zone
 liftNoGoRad = SCREW_RAD - POS_DIFF_MIN
@@ -57,7 +62,7 @@ noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
 visPath = None
 if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
 supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
-outputAssembly += generateSupports(supportColumns)
+supportGeometry = generateSupports(supportColumns)
 
 
 
@@ -69,19 +74,26 @@ if False:
 		outputAssembly += sphere(2).translate(pt)
 
 # Add path of marble in 3d to check for intersections
-if False:
-	testProfile = sphere(MARBLE_RAD)
-	for fooPath in pathList:
-		outputAssembly += getShapePathSet(fooPath, np.zeros_like(fooPath), testProfile)
+marblePathGeometry = sphere(0)
+for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros_like(fooPath), sphere(MARBLE_RAD/2))
+if True:
+	outputAssembly += marblePathGeometry
 
 # Show screw and marble for example
-screwLoadAssembly = generateCenterScrewRotatingPart()#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
-screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
+#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
+# screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
 
+# Add path sections to support screw lift
+screwLoadAssembly = sphere(0)
 for pathIdx in range(PATH_COUNT):
 	angle = np.pi*2*pathIdx/PATH_COUNT
 	screwLoadAssembly += generateScrewPathJoins(angle)
 screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 
+(screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
 
-(screwLoadAssembly + outputAssembly).save_as_scad(WORKING_DIR + "out.scad")
+rotatingScrew = generateCenterScrewRotatingPart().translate(SCREW_POS)
+
+(screwLoadAssembly + outputAssembly + supportGeometry + rotatingScrew).save_as_scad(WORKING_DIR + "all.scad")
+
+((supportGeometry) & marblePathGeometry).save_as_scad(WORKING_DIR + "supportIntersection.scad")

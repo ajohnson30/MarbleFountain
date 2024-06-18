@@ -171,8 +171,8 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, maxForce=5, diffPointOff
 	
 	
 	# # Apply inline force on each adjacent particle
-	# outForces[:, :-2] += forceMags*prevNorm
-	# outForces[:, 2:]  += forceMags*nextNorm
+	# outForces[:, :-(diffPointOffsetCnt*2)] += forceMags*prevNorm
+	# outForces[:, (diffPointOffsetCnt*2):]  += forceMags*nextNorm
 
 	# # Push/pull adjacent particles towards or away from each other
 	# # This helps propagate desired change along path
