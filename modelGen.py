@@ -38,13 +38,28 @@ for path, rot in zip(pathList, rotList):
     # outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
     outputAssembly += generateTrackFromPathSubdiv(path[:, :], rot[:, :])
 
+# Add path sections to support screw lift
+screwLoadAssembly = sphere(0)
+screwLoadSupportAnchors = []
+for pathIdx in range(PATH_COUNT):
+	angle = np.pi*2*pathIdx/PATH_COUNT
+	geometry, supportAnchors = generateScrewPathJoins(angle)
+	screwLoadAssembly += geometry
+	screwLoadSupportAnchors.append(supportAnchors)
+screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
+
+
 # Get list of all points which require support
 supportAnchors = [calculateSupportAnchorsForPath(path, rot) for path, rot in zip(pathList, rotList)]
 supportPoints = np.concatenate(supportAnchors, axis=1)
 
 # Get list of all no-go points
-# noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
-noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
+noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
+# noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
+noGoPoints[2] -= MARBLE_RAD
+
+supportAnchorPointsConcat = np.concatenate([anchors for anchors in supportAnchors], axis=1) # get concat supportAnchors
+screwLoadSupportAnchorsConcat = np.concatenate([anchors for anchors in screwLoadSupportAnchors], axis=1) # get concat supportAnchors
 
 # Calculate lift exclusion zone
 liftNoGoRad = SCREW_RAD - POS_DIFF_MIN
@@ -53,14 +68,17 @@ centerPoints = np.array([liftNoGoZ, liftNoGoZ, liftNoGoZ])
 centerPoints[0, :] = SIZE_X/2 + liftNoGoRad*np.cos(liftNoGoZ)
 centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
 
-noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
+noGoPoints = np.concatenate([noGoPoints, centerPoints, screwLoadSupportAnchorsConcat], axis=1)
 
 
 # Generate supports
-visPath = None
-if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
-supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
-supportGeometry = generateSupports(supportColumns)
+if True:
+	visPath = None
+	if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
+	supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
+	supportGeometry = generateSupports(supportColumns)
+else:
+	supportGeometry = sphere(0)
 
 
 
@@ -77,22 +95,23 @@ for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros
 if False:
 	outputAssembly += marblePathGeometry
 
-# Add path sections to support screw lift
-screwLoadAssembly = sphere(0)
-for pathIdx in range(PATH_COUNT):
-	angle = np.pi*2*pathIdx/PATH_COUNT
-	screwLoadAssembly += generateScrewPathJoins(angle)
-screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
-
 # Show screw and marble for example
 #.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
 # screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
 rotatingScrew = generateCenterScrewRotatingPart().translate(SCREW_POS)
+
+# Show no go points
+noGoDisplay = sphere(0)
+for fooPt in np.swapaxes(noGoPoints, 0, 1):
+	noGoDisplay += sphere(0.4).translate(fooPt)
 os.makedirs(WORKING_DIR+'test/', exist_ok=True)
 
 (screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
 
 (screwLoadAssembly + outputAssembly + supportGeometry + rotatingScrew).save_as_scad(WORKING_DIR + "test/AllComponentsTogether.scad")
-((supportGeometry) & marblePathGeometry).save_as_scad(WORKING_DIR + "test/supportIntersection.scad")
+(((supportGeometry) & marblePathGeometry)).save_as_scad(WORKING_DIR + "test/supportIntersection.scad")
 (supportGeometry).save_as_scad(WORKING_DIR + "test/supports.scad")
 (outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")
+(screwLoadAssembly).save_as_scad(WORKING_DIR + "test/screwLoadAssembly.scad")
+
+(noGoDisplay).save_as_scad(WORKING_DIR + "test/noGo.scad")

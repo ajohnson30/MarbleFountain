@@ -268,31 +268,31 @@ def generateScrewPathJoins(angle):
 
 	# Add top loop
 	UPPER_PT_CNT = 10
-	railPath = np.zeros((3, 1+UPPER_PT_CNT))
-	railPath[0] = vertRailDistFromSpiral
+	topRailPath = np.zeros((3, 1+UPPER_PT_CNT))
+	topRailPath[0] = vertRailDistFromSpiral
 
 	# First point matches tracks
-	railPath[0, 0] = PT_SPACING
-	railPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
-	railPath[2, 0] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
+	topRailPath[0, 0] = PT_SPACING
+	topRailPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
+	topRailPath[2, 0] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
 	
 	# Circular feature at top
 	angleSet = np.linspace(-np.arccos(vertRailSideOffset/entryRad), np.pi/2, UPPER_PT_CNT)
-	railPath[1, 1:UPPER_PT_CNT+1] = entryRad*np.cos(angleSet)
-	railPath[2, 1:UPPER_PT_CNT+1] = SIZE_Z + entryRad*np.sin(angleSet)
+	topRailPath[1, 1:UPPER_PT_CNT+1] = entryRad*np.cos(angleSet)
+	topRailPath[2, 1:UPPER_PT_CNT+1] = SIZE_Z + entryRad*np.sin(angleSet)
 
 	# Save, mirror, save
-	outputGeometry += getShapePathSet(railPath, None, railSphere)
-	rightRail = deepcopy(railPath)
+	outputGeometry += getShapePathSet(topRailPath, None, railSphere)
+	rightRail = deepcopy(topRailPath)
 	rightRail[1] *= -1
 	outputGeometry += getShapePathSet(rightRail, None, railSphere)
 
 	# Add legs
 	legPath = np.zeros((3, 3))
-	legPath[:, 0] = railPath[:, 1]
-	legPath[:, 1] = railPath[:, 0]
+	legPath[:, 0] = topRailPath[:, 1]
+	legPath[:, 1] = topRailPath[:, 0]
 	legPath[2, 1] -= TRACK_RAD
-	legPath[:, 2] = railPath[:, 1]
+	legPath[:, 2] = topRailPath[:, 1]
 	legPath[2, 2] -= MARBLE_RAD*2
 
 	# Save, mirror, save
@@ -301,7 +301,29 @@ def generateScrewPathJoins(angle):
 	legPath[1] *= -1
 	outputGeometry += getShapePathSet(legPath, None, railSphere)
 
-	return(outputGeometry.translateX(SCREW_RAD).rotateZ(180.0*angle/np.pi))
+	# Add supports to vertical columns
+	minZ = np.min(topRailPath[2])
+	maxZ = np.max(railPath[2, :-1])
+	SUPPORT_PTS = 21
+	SUPPORT_DIST = TRACK_RAD*3
+	supportPath = np.zeros((3, SUPPORT_PTS))
+	supportPath[0, :] = railPath[0, -1]
+	supportPath[1, :] = railPath[1, -1]
+	supportPath[2, :] = np.linspace(minZ, maxZ, SUPPORT_PTS) # Interpolate Z positions
+	supportPath[0, 1::2] += SUPPORT_DIST
+	supportPath[1, 1::2] += SUPPORT_DIST
+
+	# Save, mirror, save
+	outputGeometry += getShapePathSet(supportPath, None, railSphere)
+	outputGeometry += getShapePathSet(supportPath[:, 1::2], None, railSphere)
+	supportPath_right = deepcopy(supportPath)
+	supportPath_right[1] *= -1
+	outputGeometry += getShapePathSet(supportPath_right, None, railSphere)
+	outputGeometry += getShapePathSet(supportPath_right[:, 1::2], None, railSphere)
+
+	supportPoints = np.concatenate([supportPath[:, 1::2], supportPath_right[:, 1::2]], axis=1)
+
+	return(outputGeometry.translateX(SCREW_RAD).rotateZ(180.0*angle/np.pi), supportPoints)
 
 # Generate track geometry
 def generateTrackFromPath(path, rotations):
