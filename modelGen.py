@@ -43,10 +43,9 @@ supportAnchors = [calculateSupportAnchorsForPath(path, rot) for path, rot in zip
 supportPoints = np.concatenate(supportAnchors, axis=1)
 
 # Get list of all no-go points
-noGoPoints = np.concatenate([path for path in pathList], axis=1) # Subdivide to get intermediate points
-noGoPoints -= MARBLE_RAD
+# noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
+noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
 
-# noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
 # Calculate lift exclusion zone
 liftNoGoRad = SCREW_RAD - POS_DIFF_MIN
 liftNoGoZ = np.arange(BASE_OF_MODEL, SIZE_Z, 0.8)
