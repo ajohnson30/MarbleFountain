@@ -45,30 +45,30 @@ for pathIdx in range(PATH_COUNT):
 	angle = np.pi*2*pathIdx/PATH_COUNT
 	geometry, supportAnchors = generateScrewPathJoins(angle)
 	screwLoadAssembly += geometry
-	screwLoadSupportAnchors.append(supportAnchors)
+	screwLoadSupportAnchors.append(supportAnchors+SCREW_POS[:, None])
 screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 
 
 # Get list of all points which require support
 supportAnchors = [calculateSupportAnchorsForPath(path, rot) for path, rot in zip(pathList, rotList)]
-supportPoints = np.concatenate(supportAnchors, axis=1)
+
+supportPoints = np.concatenate(supportAnchors+screwLoadSupportAnchors, axis=1)
 
 # Get list of all no-go points
 noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
 # noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
 noGoPoints[2] -= MARBLE_RAD
 
-supportAnchorPointsConcat = np.concatenate([anchors for anchors in supportAnchors], axis=1) # get concat supportAnchors
-screwLoadSupportAnchorsConcat = np.concatenate([anchors for anchors in screwLoadSupportAnchors], axis=1) # get concat supportAnchors
+# supportAnchorPointsConcat = np.concatenate([anchors for anchors in supportAnchors], axis=1) # get concat supportAnchors
 
 # Calculate lift exclusion zone
-liftNoGoRad = SCREW_RAD - POS_DIFF_MIN
+liftNoGoRad = SCREW_RAD
 liftNoGoZ = np.arange(BASE_OF_MODEL, SIZE_Z, 0.8)
 centerPoints = np.array([liftNoGoZ, liftNoGoZ, liftNoGoZ])
 centerPoints[0, :] = SIZE_X/2 + liftNoGoRad*np.cos(liftNoGoZ)
 centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
 
-noGoPoints = np.concatenate([noGoPoints, centerPoints, screwLoadSupportAnchorsConcat], axis=1)
+noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
 
 
 # Generate supports

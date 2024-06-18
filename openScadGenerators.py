@@ -322,6 +322,8 @@ def generateScrewPathJoins(angle):
 	outputGeometry += getShapePathSet(supportPath_right[:, 1::2], None, railSphere)
 
 	supportPoints = np.concatenate([supportPath[:, 1::2], supportPath_right[:, 1::2]], axis=1)
+	supportPoints[0] += SCREW_RAD
+	supportPoints = pf.doRotationMatrixes(supportPoints, [0, 0, angle])
 
 	return(outputGeometry.translateX(SCREW_RAD).rotateZ(180.0*angle/np.pi), supportPoints)
 
