@@ -20,10 +20,10 @@ from openScadGenerators import *
 
 # Save screw base
 outputAssembly = generateCenterScrewRotatingPart()
-outputAssembly.save_as_scad(WORKING_DIR + "`Screw.scad")
+outputAssembly.save_as_scad(WORKING_DIR + "Screw.scad")
 
 outputAssembly = cylinder(30, 5, 2)
-outputAssembly.save_as_scad(WORKING_DIR + "`Foot.scad")
+outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
 
 
 # Load path data

@@ -22,6 +22,11 @@ from defs import *
 from shared import *
 import positionFuncs as pf
 
+def generateCutoutForPrinting():
+	CUTOUT_Z = 1.5
+	baseCutout = linear_extrude(300)(trapezoid(CUTOUT_Z, 1.5, 0.0)).rotate([90, 0, 90]).translate([-150, 0, CUTOUT_Z/2])
+	return(baseCutout + baseCutout.rotateZ(60) + baseCutout.rotateZ(120))
+
 # Extrude shape along path with rotaions
 def getShapePathSet(path, rotations, profile, returnIndividual=False, returnFunc=chain_hull):
 	outProfiles = []
@@ -170,6 +175,9 @@ def generateCenterScrewRotatingPart():
 	outputScrewSupports = cylinder(SCREW_RAD, SCREW_RAD/2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
+	# Add vent holes for SLA printing
+	outputScrewSupports -= generateCutoutForPrinting().translateZ(BASE_OF_MODEL-1e-3)
+
 	# Supports
 	outputScrewSupports += generateScrewSupports(bottomRailPath, railSphere)
 	outputScrewSupports += generateScrewSupports(baseRailPath, railSphere)
@@ -181,13 +189,13 @@ def generateCenterScrewRotatingPart():
 		outputScrewSupports -= (cylinder(12, 1.5, 1.5, _fn=HIGHER_RES_FN) & cube([10, 10, 8]).translate([1.5-2.4, -5, 0])).translateZ(BASE_OF_MODEL-2)
 		
 	# MarblePath for viz
-	if False:
+	if True:
 		marblePath = deepcopy(basePath)
 		marblePath[:2] *= SCREW_RAD
 		marblePath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:])
 		outputScrew += getShapePathSet(marblePath, None, sphere(MARBLE_RAD, _fn=UNIVERSAL_FN))
 
-	return(outputScrew + outputScrewSupports)
+	return(outputScrewSupports + outputScrew)
 
 # Connect path to  screw
 def generateScrewPathJoins(angle):
@@ -689,10 +697,10 @@ def generateSupports(supportCols):
 		ptCnt = len(fooCol.posHist)
 		
 		# Calculate size of each profile
-		sizeList = np.linspace(size, mergedSize, ptCnt)
+		sizeList = np.linspace(getColumnRad(size), getColumnRad(mergedSize), ptCnt)
 		if ptCnt > MERGE_SMOOTH_PTS:
-			sizeList[:] = fooCol.size
-			sizeList[-MERGE_SMOOTH_PTS:] = np.linspace(size, mergedSize, MERGE_SMOOTH_PTS)
+			sizeList[:] = getColumnRad(fooCol.size)
+			sizeList[-MERGE_SMOOTH_PTS:] = np.linspace(getColumnRad(size), getColumnRad(mergedSize), MERGE_SMOOTH_PTS)
 		
 		# Generate the profiles
 		outProfiles = []
@@ -701,7 +709,7 @@ def generateSupports(supportCols):
 			fooPos = fooCol.posHist[fooIdx]
 
 			# outProfiles.append(sphere(getColumnRad(sizeList[fooIdx]), _fn=UNIVERSAL_FN).translate(fooCol.posHist[0]))
-			outProfiles.append(sphere(getColumnRad(sizeList[fooIdx]), _fn=UNIVERSAL_FN).translate(fooPos))
+			outProfiles.append(sphere(sizeList[fooIdx], _fn=UNIVERSAL_FN).translate(fooPos))
 
 			# if fooIdx == 0 and len(fooCol.mergedFrom) == 0:
 			# 	outProfiles.append(sphere(TRACK_RAD, _fn=UNIVERSAL_FN).translate(fooPos))
@@ -746,6 +754,8 @@ def generateSupports(supportCols):
 
 		cutout += faceCutout.translate([-frontX/2, -frontY/2, -maxHeight-lipThickness+BASE_OF_MODEL])
 		cutout += cylinder(maxHeight+lipThickness*2, frontY/2-lipDepth, frontY/2-lipDepth).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+
+	cutout += generateCutoutForPrinting().translateZ(BASE_OF_MODEL - BASE_THICKNESS - 1e-3) # Cut out vent holes for SLA printing
 
 	supports -= cutout.translate(SCREW_POS)
 

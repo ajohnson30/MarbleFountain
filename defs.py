@@ -3,7 +3,7 @@ import numpy as np
 # Overall size of box to generate path in
 SIZE_X = 195
 SIZE_Y = 120
-SIZE_Z = 190
+SIZE_Z = 180
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
@@ -74,7 +74,7 @@ MOTOR_TYPE = 'SMALL_DC'
 
 SCREW_POS = np.array([SIZE_X/2, SIZE_Y/2, 0.0])
 
-WORKING_DIR = 'proc/Test/'
+WORKING_DIR = 'proc/Print3/'
 
 BOUNDING_BOX = np.array([SIZE_X, SIZE_Y, SIZE_Z])
 
