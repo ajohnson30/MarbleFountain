@@ -20,10 +20,10 @@ from openScadGenerators import *
 
 # Save screw base
 outputAssembly = generateCenterScrewRotatingPart()
-outputAssembly.save_as_scad(WORKING_DIR + "screw.scad")
+outputAssembly.save_as_scad(WORKING_DIR + "`Screw.scad")
 
 outputAssembly = cylinder(30, 5, 2)
-outputAssembly.save_as_scad(WORKING_DIR + "foot.scad")
+outputAssembly.save_as_scad(WORKING_DIR + "`Foot.scad")
 
 
 # Load path data
@@ -35,9 +35,8 @@ outputAssembly = sphere(0)
 # # Generate actual path geometry
 for path, rot in zip(pathList, rotList):
     # outputAssembly += generateTrackFromPath(path, rot)
-    outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
-
-# outputAssembly.save_as_scad(WORKING_DIR + "out.scad")
+    # outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
+    outputAssembly += generateTrackFromPathSubdiv(path[:, :], rot[:, :])
 
 # Get list of all points which require support
 supportAnchors = [calculateSupportAnchorsForPath(path, rot) for path, rot in zip(pathList, rotList)]
@@ -58,11 +57,11 @@ centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
 noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
 
 
-# Generate supports
-visPath = None
-if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
-supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
-supportGeometry = generateSupports(supportColumns)
+# # Generate supports
+# visPath = None
+# if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
+# supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
+# supportGeometry = generateSupports(supportColumns)
 
 
 
@@ -76,12 +75,8 @@ if False:
 # Add path of marble in 3d to check for intersections
 marblePathGeometry = sphere(0)
 for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros_like(fooPath), sphere(MARBLE_RAD/2))
-if True:
+if False:
 	outputAssembly += marblePathGeometry
-
-# Show screw and marble for example
-#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
-# screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
 
 # Add path sections to support screw lift
 screwLoadAssembly = sphere(0)
@@ -90,10 +85,15 @@ for pathIdx in range(PATH_COUNT):
 	screwLoadAssembly += generateScrewPathJoins(angle)
 screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 
-(screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
-
+# Show screw and marble for example
+#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
+# screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
 rotatingScrew = generateCenterScrewRotatingPart().translate(SCREW_POS)
+os.makedirs(WORKING_DIR+'test/', exist_ok=True)
 
-(screwLoadAssembly + outputAssembly + supportGeometry + rotatingScrew).save_as_scad(WORKING_DIR + "all.scad")
+# (screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
 
-((supportGeometry) & marblePathGeometry).save_as_scad(WORKING_DIR + "supportIntersection.scad")
+# (screwLoadAssembly + outputAssembly + supportGeometry + rotatingScrew).save_as_scad(WORKING_DIR + "test/AllComponentsTogether.scad")
+# ((supportGeometry) & marblePathGeometry).save_as_scad(WORKING_DIR + "test/supportIntersection.scad")
+# (supportGeometry).save_as_scad(WORKING_DIR + "test/supports.scad")
+(outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")

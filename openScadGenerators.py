@@ -3,7 +3,7 @@
 from solid2.extensions.bosl2 import circle, cuboid, sphere, cylinder, \
 									heightfield, diff, tag, attach, \
 									TOP, BOTTOM, CTR, metric_screws, rect, glued_circles, \
-									chain_hull, conv_hull, hull, cube, union, trapezoid, teardrop, skin, sweep
+									chain_hull, conv_hull, hull, cube, union, trapezoid, teardrop, skin, sweep, polygon
 
 from solid2.extensions.bosl2.turtle3d import turtle3d
 
@@ -331,6 +331,55 @@ def generateTrackFromPath(path, rotations):
 		tracks += getShapePathSet(
 			path,
 			rotations,
+			fooProfile 
+			)
+	return(tracks)
+
+def generateTrackFromPathSubdiv(path, rotations):
+	# Use spline interpolation for additonal points
+	fullPath = subdividePath(path)
+	fullRots = calculatePathRotations(fullPath)
+
+	lowerDist = TRACK_SUPPORT_RAD*2
+	trackToPathDist = MARBLE_RAD + TRACK_RAD
+		
+	# Calculate tall and short track profiles
+	shortRail = linear_extrude(0.2)(circle(TRACK_SUPPORT_RAD, _fn=UNIVERSAL_FN)).rotate([90, 0, 90])
+
+	# Generate circular profile
+	angleList = np.linspace(0.0, 2*np.pi, UNIVERSAL_FN)
+	railPoints = np.zeros((UNIVERSAL_FN, 2))
+	railPoints[:, 0] = TRACK_SUPPORT_RAD*np.cos(angleList)
+	railPoints[:, 1] = TRACK_SUPPORT_RAD*np.sin(angleList)
+
+	tallPoints = deepcopy(railPoints)
+	tallPoints[int(UNIVERSAL_FN/2):, 1] -= lowerDist
+	tallRail = linear_extrude(0.2)(polygon(tallPoints)).rotate([90, 0, 90])
+
+	medPoints = deepcopy(railPoints)
+	medPoints[int(UNIVERSAL_FN/2):, 1] -= lowerDist/3
+	medRail = linear_extrude(0.2)(polygon(medPoints)).rotate([90, 0, 90])
+	# tallRail = polygon(outPts).rotate([90, 0, 90])
+
+	rightTrackSet = [
+		tallRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		medRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		shortRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		medRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+	]
+
+	leftTrackSet = [
+		tallRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		medRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		shortRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		medRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+	]
+
+	tracks = sphere(0)
+	for fooProfile in [rightTrackSet, leftTrackSet]:
+		tracks += getShapePathSet(
+			fullPath,
+			fullRots,
 			fooProfile 
 			)
 	return(tracks)

@@ -29,7 +29,7 @@ MARBLE_RAD = 6.3/2 # Radius of marble
 TRACK_RAD = 0.75 # Radius of standard marble support section
 
 TRACK_CONTACT_ANGLE = np.pi/4 # Angle between path and support points
-TRACK_MAX_TILT = np.pi/10 # Max angle of tilt for track
+TRACK_MAX_TILT = np.pi/4 # Max angle of tilt for track
 SMOOTH_TILT_CNT_A = 2 # How many points to smooth each rotation points' tilt by
 SMOOTH_TILT_CNT_B = 3 # And then we do it again
 

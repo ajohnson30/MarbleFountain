@@ -220,17 +220,18 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	changeInAngle[changeInAngle < -np.pi] += 2*np.pi
 
 	# Calculate banking turns
-	tilt = -changeInAngle
+	tilt = -changeInAngle*4
 
 	# Limit max rotation
 	tilt = np.clip(tilt, -TRACK_MAX_TILT, TRACK_MAX_TILT)
 	
 	# Smooth rotations
-	tilt = np.convolve(tilt, np.ones(SMOOTH_TILT_CNT_A)/SMOOTH_TILT_CNT_A, mode='same')
-	tilt = np.convolve(tilt, np.ones(SMOOTH_TILT_CNT_B)/SMOOTH_TILT_CNT_B, mode='same')
-	
-	tilt *= 3
-	
+	SMOOTH_CNT = 5
+	SMOOTH_REP = 20
+	for ii in range(SMOOTH_REP):
+		smoothTilt = np.convolve(tilt, np.ones(SMOOTH_CNT)/SMOOTH_CNT, mode='same')
+		greaterMagSubset = np.where(np.abs(smoothTilt) > np.abs(tilt))
+		tilt[greaterMagSubset] = smoothTilt[greaterMagSubset]
 
 	rotations = np.zeros_like(path)[:2]
 	rotations[0, 1:-1] = baseAngles
