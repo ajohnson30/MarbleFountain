@@ -80,41 +80,51 @@ for pathIteration in range(PATH_ITERS):
 
         # Pull towards bounding box
         boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, 30.0, 2.0, axCount=3)
+        if APPLY_FORCES_SEPARATELY: path += boundingBoxForce
 
         # Pull towards Z position
         targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.5, 5)
         # targHeightForce += pullTowardsTargetSlope(path, -PT_DROP, 0.3, 1.0)
+
+        if APPLY_FORCES_SEPARATELY: path += targHeightForce
 
         # Normalize distances between points
         # pathXY = deepcopy(path)
         # pathXY[2] = 0.0
         # pathNormForce = normalizePathDists(pathXY, PT_SPACING, 10.0)
 
-        pathNormForce = normalizePathDists(path,  PT_SPACING, 1.0)
+        pathNormForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)
         # pathNormForce = np.zeros_like(pathNormForce)
+        if APPLY_FORCES_SEPARATELY: path += pathNormForce
 
         # Repel away from own path
-        noSelfIntersectionForce = repelPathFromSelf(path, 3, 10, ABSOLUTE_MIN_PT_DIST*2)
-        noSelfIntersectionForce = repelPathFromSelf(path, 5, 0.01, 10)
+        noSelfIntersectionForce = repelPathFromSelf(path, 1, 10, ABSOLUTE_MIN_PT_DIST*3)
+        noSelfIntersectionForce = repelPathFromSelf(path, 5, 0.01, 40)
+        if APPLY_FORCES_SEPARATELY: path += noSelfIntersectionForce
 
         # Limit path angle
-        pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.0)
-        # pathAngleForce = correctPathAngle(path, 2.0, 3.1, 1.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
-        # pathAngleForce = correctPathAngle(path, 1.0, 3.1, 0.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
+        pathAngleForce = correctPathAngle(path, 2.9, 3.14, 2.0)
+        # pathAngleForce = correctPathAngle(path, 2.5, 3.14, 1.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        # pathAngleForce = correctPathAngle(path, 1.0, 3.1, 1.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 3.0, 3.1, 0.1, flatten=False)
         # pathAngleForce = correctPathAngle(path, 2.4, 3.0, 0.1, diffPointOffsetCnt=3) # Apply smoothing function across more points
+        if APPLY_FORCES_SEPARATELY: path += pathAngleForce
 
         # Repel away from other paths
         repelForce = np.zeros_like(path)
         for cmpIdx in range(len(pathList)):
             if pathIdx == cmpIdx: continue
-            repelForce += repelPoints(path, pathList[cmpIdx], 10.0, ABSOLUTE_MIN_PT_DIST) # Absolute required distance between points
-            repelForce += repelPoints(path, pathList[cmpIdx], 2.5, ABSOLUTE_MIN_PT_DIST*3) # Absolute required distance between points
+            absoluteMinPathForce = repelPoints(path, pathList[cmpIdx], 10.0, ABSOLUTE_MIN_PT_DIST*1.5) # Absolute required distance between points, only inpacts Z
+            absoluteMinPathForce[:2] = 0.0
+            repelForce += absoluteMinPathForce
+
+            repelForce += repelPoints(path, pathList[cmpIdx], 2.0, ABSOLUTE_MIN_PT_DIST*3) # Absolute required distance between points
             # repelForce[2] = np.clip(repelForce[2], -5, 5)
-            # repelForce += repelPoints(path, pathList[cmpIdx], 0.01, 20)
+            repelForce += repelPoints(path, pathList[cmpIdx], 0.001, 30)
         
         # Repel away from center lift
         repelForce += repelPoints(path, centerPoints, 4.0, 2*ABSOLUTE_MIN_PT_DIST+SCREW_RAD)
+        if APPLY_FORCES_SEPARATELY: path += repelForce
 
         if False:
             ax = plt.figure().add_subplot(projection='3d')
@@ -144,7 +154,8 @@ for pathIteration in range(PATH_ITERS):
             path = redistributePathByForce(path, sumForce)
             # path = redistributePathByForce(path, sumForce)
         else:
-            path += sumForce
+            if not APPLY_FORCES_SEPARATELY:
+                path += sumForce
 
             # Pull towards set points
             setPointIndices = setPointIndexList[pathIdx]

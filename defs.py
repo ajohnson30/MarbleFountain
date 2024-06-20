@@ -1,8 +1,8 @@
 import numpy as np
 
 # Overall size of box to generate path in
-SIZE_X = 195
-SIZE_Y = 120
+SIZE_X = 190
+SIZE_Y = 110
 SIZE_Z = 180
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
@@ -10,15 +10,16 @@ BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 5 # distance from one point to the next
 
-PT_DROP = 1.0# target z drop per pt
+PT_DROP = 1.3 # target z drop per pt
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 
-PATH_COUNT = 2 # Numer of paths to generate
+PATH_COUNT = 3 # Numer of paths to generate
 
 # Path gen optimization
-PATH_ITERS = 300 # Number of iterations to optimize too
-RESAMPLE_AT = [20] # Resample the path to alleviate knots at this number of iterations
-SET_ITERATION_MOVE_DISTS = True # Move all points by same distance which gradually decreases (instead of by force)
+PATH_ITERS = 400 # Number of iterations to optimize too
+RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterations
+APPLY_FORCES_SEPARATELY = True
+SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
 RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
 
@@ -28,8 +29,8 @@ LOCKED_PT_CNT = 5 # Points locked in a straight line as part of the initial path
 MARBLE_RAD = 6.3/2 # Radius of marble
 TRACK_RAD = 0.75 # Radius of standard marble support section
 
-TRACK_CONTACT_ANGLE = np.pi/4 # Angle between path and support points
-TRACK_MAX_TILT = np.pi/4 # Max angle of tilt for track
+TRACK_CONTACT_ANGLE = np.pi/3 # Angle between path and support points
+TRACK_MAX_TILT = np.pi/3 # Max angle of tilt for track
 SMOOTH_TILT_CNT_A = 2 # How many points to smooth each rotation points' tilt by
 SMOOTH_TILT_CNT_B = 3 # And then we do it again
 
@@ -54,7 +55,7 @@ Z_DIFF_MAX = 100 # Z difference of max repulsion force
 POS_DIFF_MIN = MARBLE_RAD # XY diff of min repulsion force
 POS_DIFF_MAX = MARBLE_RAD*4 # XY diff of max repulsion force
 
-SUPPORT_VIS = True # Output support gen visualization
+SUPPORT_VIS = False # Output support gen visualization
 UNIVERSAL_FN = 10 # How many sides for each triangle
 HIGHER_RES_FN = 20
 
@@ -63,18 +64,18 @@ SCREW_RAD = 12 # Center of rotation to center of marble on track
 SCREW_PITCH = 16 # mm per rev
 SCREW_RESOLUTION = 30 # pts per rev
 SCREW_SUPPORT_GROUPING = (4, 9)
-SCREW_OUTER_TRACK_DIST = 0.0 # How far out to place the bottom rail
+SCREW_OUTER_TRACK_DIST = 0.5 # How far out to place the bottom rail
 SCREW_TOP_PUSH_PTS = 10 # How many points at the top of the screw to push towards the outside
 
 # Entry and exit connections
 END_PATH_OFFSET = MARBLE_RAD * (1 + np.sin(TRACK_CONTACT_ANGLE))
-SCREW_VERT_RAIL_MARGIN = 0.4 # Margin between bottom rail and vertical lift supports
+SCREW_VERT_RAIL_MARGIN = 0.0 # Margin between bottom rail and vertical lift supports
 
 MOTOR_TYPE = 'SMALL_DC'
 
 SCREW_POS = np.array([SIZE_X/2, SIZE_Y/2, 0.0])
 
-WORKING_DIR = 'proc/Print3/'
+WORKING_DIR = 'proc/Print4/'
 
 BOUNDING_BOX = np.array([SIZE_X, SIZE_Y, SIZE_Z])
 

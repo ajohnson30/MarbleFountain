@@ -72,7 +72,7 @@ noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
 
 
 # Generate supports
-if True:
+if False:
 	visPath = None
 	if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
 	supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
@@ -97,8 +97,9 @@ if False:
 
 # Show screw and marble for example
 #.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
-# screwLoadAssembly += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
-rotatingScrew = generateCenterScrewRotatingPart().translate(SCREW_POS)
+rotatingScrew = generateCenterScrewRotatingPart()
+rotatingScrew += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
+rotatingScrew = rotatingScrew.translate(SCREW_POS)
 
 # Show no go points
 noGoDisplay = sphere(0)
@@ -112,6 +113,6 @@ os.makedirs(WORKING_DIR+'test/', exist_ok=True)
 (((supportGeometry) & marblePathGeometry)).save_as_scad(WORKING_DIR + "test/supportIntersection.scad")
 (supportGeometry).save_as_scad(WORKING_DIR + "test/supports.scad")
 (outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")
-(screwLoadAssembly).save_as_scad(WORKING_DIR + "test/screwLoadAssembly.scad")
+(screwLoadAssembly + rotatingScrew).save_as_scad(WORKING_DIR + "test/screwLoadAssembly.scad")
 
 (noGoDisplay).save_as_scad(WORKING_DIR + "test/noGo.scad")

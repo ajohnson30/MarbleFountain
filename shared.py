@@ -239,6 +239,9 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	rotations[0, -1] = angles[-1]
 	rotations[1, 1:-1] = tilt
 
+	# Set initial track to be flat
+	rotations[1, :LOCKED_PT_CNT*2] = 0.0
+	
 	return rotations
 
 def redistributePathByForce(path, sumForce):

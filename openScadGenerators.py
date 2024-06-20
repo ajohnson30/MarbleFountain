@@ -178,18 +178,18 @@ def generateCenterScrewRotatingPart():
 	# Add vent holes for SLA printing
 	outputScrewSupports -= generateCutoutForPrinting().translateZ(BASE_OF_MODEL-1e-3)
 
-	# Supports
-	outputScrewSupports += generateScrewSupports(bottomRailPath, railSphere)
-	outputScrewSupports += generateScrewSupports(baseRailPath, railSphere)
-	outputScrewSupports += generateScrewSupports(insideRailPath, railSphere)
-	outputScrewSupports += generateScrewSupports(baseInsideRailPath, railSphere)
+	# # Supports
+	# outputScrewSupports += generateScrewSupports(bottomRailPath, railSphere)
+	# outputScrewSupports += generateScrewSupports(baseRailPath, railSphere)
+	# outputScrewSupports += generateScrewSupports(insideRailPath, railSphere)
+	# outputScrewSupports += generateScrewSupports(baseInsideRailPath, railSphere)
 
 	# Motor Shaft Cutout
 	if MOTOR_TYPE == 'SMALL_DC':
 		outputScrewSupports -= (cylinder(12, 1.5, 1.5, _fn=HIGHER_RES_FN) & cube([10, 10, 8]).translate([1.5-2.4, -5, 0])).translateZ(BASE_OF_MODEL-2)
 		
 	# MarblePath for viz
-	if True:
+	if False:
 		marblePath = deepcopy(basePath)
 		marblePath[:2] *= SCREW_RAD
 		marblePath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:])
