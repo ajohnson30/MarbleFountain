@@ -167,8 +167,7 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, maxForce=5, diffPointOff
 	# Apply force on center of each angle
 	forceNormalVect = (prevNorm + nextNorm) / 2
 	forceNormalVect = forceNormalVect/magnitude(forceNormalVect)
-	outForces[:, diffPointOffsetCnt:-diffPointOffsetCnt] -= forceMags*forceNormalVect	
-	
+	outForces[:, diffPointOffsetCnt:-diffPointOffsetCnt] += forceMags*forceNormalVect/2
 	
 	# # Apply inline force on each adjacent particle
 	# outForces[:, :-(diffPointOffsetCnt*2)] += forceMags*prevNorm
@@ -196,7 +195,6 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, maxForce=5, diffPointOff
 
 	return outForceVels*outForceMags
 
-
 def subdividePath(path, only_return_new=False):
 	tck, u = splprep(path, s=0)
 	pathInterp = (u[1:] + u[:-1]) / 2
@@ -211,37 +209,136 @@ def subdividePath(path, only_return_new=False):
 		allPoints[:, 1::2] = new_points
 		return allPoints
 
+def smooth_array(data, window_size):
+    """
+    Smooths a 1D numpy array using a moving average.
+    
+    Parameters:
+    - data: 1D numpy array of floats
+    - window_size: size of the moving average window
+    
+    Returns:
+    - smoothed_data: 1D numpy array of smoothed values
+    """
+    if window_size < 1:
+        raise ValueError("Window size must be at least 1")
+    
+    if window_size > len(data):
+        raise ValueError("Window size must be less than or equal to the length of the data array")
+    
+    # Create the window for moving average
+    window = np.ones(int(window_size)) / float(window_size)
+    
+    # Apply convolution between the data and the window
+    smoothed_data = np.convolve(data, window, 'valid')
+    
+    # Handle the edges by padding with the original data
+    pad_left = data[:window_size//2]
+    pad_right = data[-(window_size//2):] if window_size % 2 == 0 else data[-(window_size//2 + 1):]
+    smoothed_data = np.concatenate((pad_left, smoothed_data, pad_right))
+    
+    return smoothed_data
 
-def calculatePathRotations(path, diffPointOffsetCnt=2):	
+def max_by_absolute_value(array1, array2):
+    result = np.where(np.abs(array1) > np.abs(array2), array1, array2)
+    return result
+
+def smoothByPrevN(inputArr, N):
+	convArr = np.flip(
+			np.convolve(
+				np.flip(inputArr),
+				np.ones(int(N)) / float(N),
+				mode='valid'
+			)
+		)
+	inputArr[N-1:] = convArr
+	return(inputArr)
+
+def smoothByNextN(inputArr, N):
+	convArr = np.convolve(
+				inputArr,
+				np.ones(int(N)) / float(N),
+				mode='valid'
+			)
+	inputArr[:-(N-1)] = convArr
+	return(inputArr)
+
+def calculatePathRotations(path, diffPointOffsetCnt=2):
+	# Calculate angles
 	baseAngles = np.arctan2(path[1, 2:] - path[1, :-2], path[0, 2:] - path[0, :-2])
 	angles = np.arctan2(np.diff(path[1]), np.diff(path[0]))
 	changeInAngle = np.diff(angles)
 	changeInAngle[changeInAngle > np.pi] -= 2*np.pi
 	changeInAngle[changeInAngle < -np.pi] += 2*np.pi
 
+	# Calculate slopes
+	pointDists = magnitude((path[:2, 2:] - path[:2, :-2]))
+	pointSlopes = (path[2][2:] - path[2][:-2])/pointDists
+	pointSlopesStandardized = (PT_DROP - np.diff(path[2])) / PT_SPACING
+
+	# Convert slope at each point into a multiplier
+	pointSlopes *= -1
+	pointSlopes -= np.min(pointSlopes)
+	slopeMagAtPoint = pointSlopes / np.average(pointSlopes)
+	slopeMagAtPoint += 0.5
+	slopeMagAtPoint[slopeMagAtPoint < 1.0] = 1.0
+
+
+	# Set minimum slope factor decay point to point
+	maxSlope = 0.97
+	slopeConv = deepcopy(slopeMagAtPoint)
+	for idx in range(1, slopeConv.shape[0]):
+		if slopeConv[idx] < slopeConv[idx-1]*maxSlope:
+			slopeConv[idx] = slopeConv[idx-1]*maxSlope
+
+	# Smooth out slope
+	slopeConv = smoothByPrevN(slopeConv, 3)
+
 	# Calculate banking turns
-	tilt = -changeInAngle*4
+	tilt = -smoothByNextN(deepcopy(changeInAngle), 5)*slopeConv*3
 
 	# Limit max rotation
 	tilt = np.clip(tilt, -TRACK_MAX_TILT, TRACK_MAX_TILT)
 	
-	# Smooth rotations
-	SMOOTH_CNT = 5
-	SMOOTH_REP = 20
+	# Smooth tilts
+	SMOOTH_CNT = 1
+	SMOOTH_REP = 100
+	currTilts = deepcopy(tilt)
 	for ii in range(SMOOTH_REP):
-		smoothTilt = np.convolve(tilt, np.ones(SMOOTH_CNT)/SMOOTH_CNT, mode='same')
-		greaterMagSubset = np.where(np.abs(smoothTilt) > np.abs(tilt))
-		tilt[greaterMagSubset] = smoothTilt[greaterMagSubset]
+		# currTilts = smooth_array(currTilts, SMOOTH_CNT)
+		smoothTilts = np.convolve(currTilts, np.ones(int(SMOOTH_CNT*2+1)) / float(SMOOTH_CNT*2+1), mode='valid')
+		currTilts[SMOOTH_CNT:-SMOOTH_CNT] = smoothTilts
+		currTilts = max_by_absolute_value(currTilts, tilt)
 
+	# Reduce initial tilts
+	ZERO_PTS = 15
+	INIT_PTS = 10
+	currTilts[:ZERO_PTS] = 0.0
+	currTilts[ZERO_PTS:ZERO_PTS+INIT_PTS] = currTilts[ZERO_PTS:ZERO_PTS+INIT_PTS]*np.linspace(0.0, 1.0, INIT_PTS)
+
+	if False:
+		plt.plot(currTilts, label="currTilts")
+		plt.plot(tilt, label="tilt")
+		plt.plot(slopeConv, label="slopeConv")
+		# plt.plot(tilt2, label="til	t2")
+		plt.plot(-changeInAngle*2, label="changeInAngle")
+		plt.plot(slopeMagAtPoint, label="slopeMagAtPoint")
+		plt.legend()
+		plt.show()
+		# exit()
+
+	# Set output array
 	rotations = np.zeros_like(path)[:2]
 	rotations[0, 1:-1] = baseAngles
 	rotations[0, 0] = angles[0]
 	rotations[0, -1] = angles[-1]
-	rotations[1, 1:-1] = tilt
+	rotations[1, 1:-1] = currTilts
 
 	# Set initial track to be flat
-	rotations[1, :LOCKED_PT_CNT*2] = 0.0
+	# rotations[1, :LOCKED_PT_CNT*2] = 0.0
 	
+	
+
 	return rotations
 
 def redistributePathByForce(path, sumForce):
@@ -263,3 +360,131 @@ def redistributePathByForce(path, sumForce):
 		)
 
 	return(newPath)
+
+def create_weighted_kernel(size, sigma):
+    """
+    Creates a weighted kernel where the weights decrease with distance from the center.
+    
+    Parameters:
+    - size: size of the kernel (must be an odd number)
+    - sigma: standard deviation for the Gaussian function
+    
+    Returns:
+    - kernel: 1D numpy array representing the weighted kernel
+    """
+    # Ensure the size is odd to have a central element
+    if size % 2 == 0:
+        raise ValueError("Size must be an odd number")
+    
+    # Create an array of distances from the center
+    distances = np.arange(-size // 2 + 1, size // 2 + 1)
+    
+    # Create a Gaussian kernel
+    kernel = np.exp(-distances**2 / (2 * sigma**2))
+    
+    # Normalize the kernel to make the sum of weights equal to 1
+    kernel /= kernel.sum()
+    
+    return kernel
+
+def weighted_average_convolution(data, kernel_size=5, sigma=1.0):
+    """
+    Applies a weighted average convolution to a 1D numpy array.
+    
+    Parameters:
+    - data: 1D numpy array of floats
+    - kernel_size: size of the weighted kernel (must be an odd number)
+    - sigma: standard deviation for the Gaussian function used in the kernel
+    
+    Returns:
+    - result: 1D numpy array of convolved values
+    """
+    kernel = create_weighted_kernel(kernel_size, sigma)
+    
+    # Apply convolution with the 'same' mode to keep the array size the same
+    result = np.convolve(data, kernel, mode='same')
+    
+    return result
+
+
+
+import threading
+import matplotlib.pyplot as plt
+from queue import Queue
+import time
+
+# Plot imported dictionaries
+def data_processor_and_plotter(data_queue):
+	data_dict = {}
+
+	plt.ion()  # Turn on interactive mode
+	fig, ax = plt.subplots()
+
+	while True:
+		while not data_queue.empty():
+			new_data = data_queue.get()
+			for tag, value in new_data.items():
+				if tag not in data_dict:
+					data_dict[tag] = []
+				data_dict[tag].append(value)
+		
+		ax.clear()
+		for tag, values in data_dict.items():
+			ax.plot(values, label=tag)
+		
+		ax.legend()
+		plt.draw()
+		plt.ylim(0, 1)
+		plt.pause(1)  # Pause to update the plot
+
+
+def plot_paths_real_time(data_queue):
+	# fig, ax = plt.subplots()
+	ax = plt.figure().add_subplot(projection='3d')
+	ax.set_xlabel('X')
+	ax.set_ylabel('Y')
+	ax.set_zlabel('Z')
+	
+	plt.ion()  # Turn on interactive mode
+
+	while True:
+		while not data_queue.empty():
+			pathList = data_queue.get()
+			fullPaths = [subdividePath(path) for path in pathList]
+
+			ax.clear()
+			
+			for pathIdx in range(len(pathList)):
+				path = pathList[pathIdx]
+				bridgePoints = fullPaths[pathIdx]
+
+
+				# ax.scatter(*centerPoints)
+
+				ax.scatter(*path)
+
+				# ax.scatter(*bridgePoints[:, 1::2], color='purple')
+				ax.plot(*bridgePoints, alpha=0.5)
+
+				# ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
+				# ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
+
+				if False:    
+					forceSet = correctPathAngle(path, 2.5, 3, 5)
+					for idx in range(len(path[0])):
+						pt = path[:, idx]
+						vect = forceSet[:, idx]
+						ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
+
+
+				# # visForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)*5
+				# visForce = correctPathAngle(path, 2.5, 3.14, 1.5, diffPointOffsetCnt=2)
+				# for idx in range(path.shape[1]):
+				# 	pt = path[:, idx]
+				# 	vect = visForce[:, idx]
+				# 	ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
+				
+				ax.set_aspect('equal', adjustable='box')
+
+		plt.draw()
+		plt.pause(2.0)  # Pause to update the plot

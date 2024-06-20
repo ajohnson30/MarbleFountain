@@ -72,7 +72,7 @@ noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
 
 
 # Generate supports
-if False:
+if True:
 	visPath = None
 	if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
 	supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
