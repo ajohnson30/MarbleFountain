@@ -125,8 +125,8 @@ for pathIteration in range(PATH_ITERS):
 
     randNoiseFactor = np.interp(
         [pathIteration/PATH_ITERS],
-        [0.0, 0.1, 0.8, 0.95, 1.0],
-        [100.0, 10.0, 2.0, 0.0, 0.0]
+        [0.0, 0.1, 0.6, 0.9, 1.0],
+        [40.0, 10.0, 2.0, 0.0, 0.0]
     )[0]
 
     for pathIdx in range(len(pathList)):
@@ -174,13 +174,15 @@ for pathIteration in range(PATH_ITERS):
         if APPLY_FORCES_SEPARATELY: path += pathNormForce * moveMult
 
         # Repel away from own path
-        noSelfIntersectionForce = repelPathFromSelf(path, 1, 10, ABSOLUTE_MIN_PT_DIST*3)
-        noSelfIntersectionForce = repelPathFromSelf(path, 5, 0.01, 40)
+        noSelfIntersectionForce = repelPathFromSelf(path, 1, 20, ABSOLUTE_MIN_PT_DIST*5)
+        noSelfIntersectionForce[:2] /= 10
+        noSelfIntersectionForce = repelPathFromSelf(path, 3, 0.1, 40)
         if APPLY_FORCES_SEPARATELY: path += noSelfIntersectionForce * moveMult
 
         # Limit path angle
         pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
-        # pathAngleForce = correctPathAngle(path, 2.7, 3.14, 0.5, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        pathAngleForce = correctPathAngle(path, 3.1, 3.14, 0.1)
+        # pathAngleForce = correctPathAngle(path, 2.7, 3.14, 0.3, diffPointOffsetCnt=2) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 2.6, 3.14, 0.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 1.0, 3.1, 1.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 3.0, 3.1, 0.1, flatten=False)
@@ -192,7 +194,7 @@ for pathIteration in range(PATH_ITERS):
         for cmpIdx in range(len(pathList)):
             if pathIdx == cmpIdx: continue
             absoluteMinPathForce = repelPoints(path, pathList[cmpIdx], 5.0, ABSOLUTE_MIN_PT_DIST*1.5) # Absolute required distance between points, only inpacts Z
-            # absoluteMinPathForce[:2] = 0.0
+            absoluteMinPathForce[:2] /= 20.0
             repelForce += absoluteMinPathForce
 
             repelForce += repelPoints(path, pathList[cmpIdx], 2.0, ABSOLUTE_MIN_PT_DIST*3) # Absolute required distance between points

@@ -22,8 +22,8 @@ from shared import *
 import positionFuncs as pf
 
 def generateCutoutForPrinting():
-	CUTOUT_Z = 1.5
-	baseCutout = linear_extrude(300)(trapezoid(CUTOUT_Z, 1.5, 0.0)).rotate([90, 0, 90]).translate([-150, 0, CUTOUT_Z/2])
+	CUTOUT_Z = 2.0
+	baseCutout = linear_extrude(300)(trapezoid(CUTOUT_Z, 3.0, 1.0)).rotate([90, 0, 90]).translate([-150, 0, CUTOUT_Z/2])
 	return(baseCutout + baseCutout.rotateZ(60) + baseCutout.rotateZ(120))
 
 # Extrude shape along path with rotaions
@@ -85,10 +85,11 @@ def generateScrewSupports(inputPath, railSphere):
 			])
 		else:
 			joinPoint[2] = BASE_OF_MODEL + TRACK_RAD
-			outSupports += conv_hull()(*[
-				railSphere.translate([0,0,BASE_OF_MODEL + TRACK_RAD]),
-				railSphere.translate(joinPoint)
-			])
+			joinPoint[:2] = 0.0
+			# outSupports += conv_hull()(*[
+			# 	railSphere.translate([0,0,BASE_OF_MODEL + TRACK_RAD]),
+			# 	railSphere.translate(joinPoint)
+			# ])
 
 		for ptIdx in range(points.shape[1]):
 			outSupports += conv_hull()(*[
@@ -112,9 +113,9 @@ def generateCenterScrewRotatingPart():
 	zOffsetOfSupportingRail = -np.sqrt(np.square(netRad) - np.square(SCREW_OUTER_TRACK_DIST))
 
 	# return(innerRail + outerRail + linear_extrude(0.01)(circle(MARBLE_RAD, _fn=10)).rotate([90, 0, 90])) # Display profile
-
+	BASE_POS_DROP = MARBLE_RAD/2
 	# Generate height and angle of path at all points
-	zPos = np.arange(0, SIZE_Z+MARBLE_RAD + SCREW_TOP_PUSH_PTS*SCREW_PITCH/SCREW_RESOLUTION, SCREW_PITCH/SCREW_RESOLUTION)
+	zPos = np.arange(-BASE_POS_DROP, SIZE_Z+MARBLE_RAD + SCREW_TOP_PUSH_PTS*SCREW_PITCH/SCREW_RESOLUTION, SCREW_PITCH/SCREW_RESOLUTION)
 	angle = zPos/SCREW_PITCH*2*np.pi
 	# zPos += np.sin(zPos*0.7)*1 # Subtely vary Z height to add interest
 	# zPos -= zOffsetOfSupportingRail # Lift all points slightly
@@ -134,7 +135,7 @@ def generateCenterScrewRotatingPart():
 
 	# Base rail
 	baseRailPath = deepcopy(bottomRailPath[:, :SCREW_RESOLUTION+1])
-	baseRailPath[2] = zOffsetOfSupportingRail
+	baseRailPath[2] = zOffsetOfSupportingRail - BASE_POS_DROP
 	outputScrew += getShapePathSet(baseRailPath, None, railSphere)
 	# baseRailPath = deepcopy(bottomRailPath[:, 14:SCREW_RESOLUTION+1]) # If I do this all in 1 go it dies for some reason
 	# baseRailPath[2] = 0.00000001
@@ -161,7 +162,7 @@ def generateCenterScrewRotatingPart():
 	# baseInsideRailRads[:decreaseRadCnt] -= MARBLE_RAD+TRACK_RAD
 	# baseInsideRailRads[decreaseRadCnt:decreaseRadCnt*2] -= np.flip(decreaseRadMags)
 	baseInsideRailPath[:2] *= baseInsideRailRads
-	baseInsideRailPath[2] = 0.0 # Set all Z to starting pos
+	baseInsideRailPath[2] =  -BASE_POS_DROP # Set all Z to starting pos
 
 	# Start at intersection of bottom rail
 	intersectionIdx = np.where(bottomRailPath[2] > 0.0)[0][0] # Find intersection
@@ -174,8 +175,6 @@ def generateCenterScrewRotatingPart():
 	outputScrewSupports = cylinder(SCREW_RAD, SCREW_RAD/2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
-	# Add vent holes for SLA printing
-	outputScrewSupports -= generateCutoutForPrinting().translateZ(BASE_OF_MODEL-1e-3)
 
 	# Supports
 	outputScrewSupports += generateScrewSupports(bottomRailPath, railSphere)
@@ -188,13 +187,16 @@ def generateCenterScrewRotatingPart():
 		outputScrewSupports -= (cylinder(12, 1.5, 1.5, _fn=HIGHER_RES_FN) & cube([10, 10, 8]).translate([1.5-2.4, -5, 0])).translateZ(BASE_OF_MODEL-2)
 		
 	# MarblePath for viz
-	if True:
+	if False:
 		marblePath = deepcopy(basePath)
 		marblePath[:2] *= SCREW_RAD
 		marblePath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:])
 		outputScrew += getShapePathSet(marblePath, None, sphere(MARBLE_RAD, _fn=UNIVERSAL_FN))
 
-	return(outputScrewSupports + outputScrew)
+	# Add vent holes for SLA printing
+	ventHoles =  generateCutoutForPrinting().translateZ(BASE_OF_MODEL-0.1)
+
+	return((outputScrewSupports + outputScrew) - ventHoles)
 
 # Connect path to  screw
 def generateScrewPathJoins(angle):
@@ -368,8 +370,8 @@ def generateTrackFromPath(path, rotations):
 
 def generateTrackFromPathSubdiv(path, rotations):
 	# Use spline interpolation for additonal points
-	fullPath = subdividePath(path)
-	fullRots = calculatePathRotations(fullPath)
+	fullPath = path # subdividePath(path)
+	fullRots = rotations # calculatePathRotations(fullPath)
 
 	lowerDist = TRACK_SUPPORT_RAD*2
 	trackToPathDist = MARBLE_RAD + TRACK_RAD
@@ -392,18 +394,21 @@ def generateTrackFromPathSubdiv(path, rotations):
 	medRail = linear_extrude(0.2)(polygon(medPoints)).rotate([90, 0, 90])
 	# tallRail = polygon(outPts).rotate([90, 0, 90])
 
+	rightSupportOffset = [0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]
+	leftSupportOffset = [0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]
+
 	rightTrackSet = [
-		tallRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
-		medRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
-		shortRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
-		medRail.translate([0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		tallRail.translate(rightSupportOffset),
+		medRail.translate(rightSupportOffset),
+		shortRail.translate(rightSupportOffset),
+		medRail.translate(rightSupportOffset),
 	]
 
 	leftTrackSet = [
-		tallRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
-		medRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
-		shortRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
-		medRail.translate([0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]),
+		tallRail.translate(leftSupportOffset),
+		medRail.translate(leftSupportOffset),
+		shortRail.translate(leftSupportOffset),
+		medRail.translate(leftSupportOffset),
 	]
 
 	tracks = sphere(0)
@@ -415,6 +420,11 @@ def generateTrackFromPathSubdiv(path, rotations):
 			)
 	return(tracks)
 
+def applyRotationsToPoint(points, rotation):
+	# tiltedPoint = pf.doRotationMatrixes(points, [rotation[1], 0.0, 0.0])
+	# return pf.doRotationMatrixes(tiltedPoint, [0.0, 0.0, rotation[0]])
+	return pf.doRotationMatrixes(points, [rotation[1], 0, rotation[0]])
+
 # Get the support anchors for the track
 def calculateSupportAnchorsForPath(path, rotations):
 	lowerDist = TRACK_SUPPORT_RAD*2
@@ -424,11 +434,11 @@ def calculateSupportAnchorsForPath(path, rotations):
 	rightSupportOffset = [0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)-lowerDist]
 	leftSupportOffset = [0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)-lowerDist]
 
-	supportSectionsCount = int(np.ceil(path.shape[1]/2))
+	supportSectionsCount = int(np.ceil(path.shape[1]/4))
 	anchorPts = np.zeros((3, supportSectionsCount*2), dtype=np.double)
 	for ii in range(0, supportSectionsCount*2, 2):
-		anchorPts[:, ii] = path[:, ii] + pf.doRotationMatrixes(rightSupportOffset, [rotations[1, ii], 0, rotations[0, ii]])
-		anchorPts[:, ii+1] = path[:, ii] + pf.doRotationMatrixes(leftSupportOffset, [rotations[1, ii], 0, rotations[0, ii]])
+		anchorPts[:, ii] = path[:, ii*2] + applyRotationsToPoint(rightSupportOffset, rotations[:, ii*2])
+		anchorPts[:, ii+1] = path[:, ii*2] + applyRotationsToPoint(leftSupportOffset, rotations[:, ii*2])
 
 	return(anchorPts)
 
@@ -495,9 +505,10 @@ def calculateAttractiveSupportForces(currentColumns, fooCol):
 # Calculate pull to stay inside of the bounding box
 def calculateBoundarySupportForces(fooCol):
 	boundingBoxForce = np.zeros_like(fooCol.sumAcc)
+	supportMargin = MARBLE_RAD*2
 	for ax in range(len(boundingBoxForce)):
-		if fooCol.currPos[ax] < 0.0: boundingBoxForce[ax] -= fooCol.currPos[ax]
-		if fooCol.currPos[ax] > BOUNDING_BOX[ax]: boundingBoxForce[ax] -= fooCol.currPos[ax]- BOUNDING_BOX[ax]
+		if fooCol.currPos[ax] < -supportMargin + 0.0: boundingBoxForce[ax] -= fooCol.currPos[ax]
+		if fooCol.currPos[ax] > supportMargin + BOUNDING_BOX[ax]: boundingBoxForce[ax] -= fooCol.currPos[ax]- BOUNDING_BOX[ax]
 	boundingBoxForce *= SUPPORT_BOUNDARY_FORCE_MAG
 	return(boundingBoxForce)
 

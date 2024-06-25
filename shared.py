@@ -285,7 +285,7 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 
 
 	# Set minimum slope factor decay point to point
-	maxSlope = 0.97
+	maxSlope = 0.96
 	slopeConv = deepcopy(slopeMagAtPoint)
 	for idx in range(1, slopeConv.shape[0]):
 		if slopeConv[idx] < slopeConv[idx-1]*maxSlope:
@@ -300,6 +300,10 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	# Limit max rotation
 	tilt = np.clip(tilt, -TRACK_MAX_TILT, TRACK_MAX_TILT)
 	
+	# Set beginning and ending points to flat
+	tilt[:LOCKED_PT_CNT*3] = 0.0
+	tilt[-LOCKED_PT_CNT:] = 0.0
+	
 	# Smooth tilts
 	SMOOTH_CNT = 1
 	SMOOTH_REP = 100
@@ -310,11 +314,14 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 		currTilts[SMOOTH_CNT:-SMOOTH_CNT] = smoothTilts
 		currTilts = max_by_absolute_value(currTilts, tilt)
 
-	# Reduce initial tilts
-	ZERO_PTS = 15
-	INIT_PTS = 10
-	currTilts[:ZERO_PTS] = 0.0
-	currTilts[ZERO_PTS:ZERO_PTS+INIT_PTS] = currTilts[ZERO_PTS:ZERO_PTS+INIT_PTS]*np.linspace(0.0, 1.0, INIT_PTS)
+	# # Reduce initial tilts
+	# ZERO_PTS = LOCKED_PT_CNT*2
+	# INIT_PTS = 10
+	# currTilts[:ZERO_PTS] = 0.0
+	# currTilts[ZERO_PTS:ZERO_PTS+INIT_PTS] = currTilts[ZERO_PTS:ZERO_PTS+INIT_PTS]*np.linspace(0.0, 1.0, INIT_PTS)
+
+	# currTilts[-LOCKED_PT_CNT:] = 0.0
+	# currTilts[-LOCKED_PT_CNT*2:-LOCKED_PT_CNT] *= np.linspace(1.0, 0.0, LOCKED_PT_CNT)
 
 	if False:
 		plt.plot(currTilts, label="currTilts")

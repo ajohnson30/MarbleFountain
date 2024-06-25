@@ -28,15 +28,16 @@ outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
 
 # Load path data
 pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
+rotList = [subdividePath(path) for path in pathList]
 rotList = [calculatePathRotations(path) for path in pathList]
 
 outputAssembly = sphere(0)
 
 # # Generate actual path geometry
 for path, rot in zip(pathList, rotList):
-    # outputAssembly += generateTrackFromPath(path, rot)
-    # outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
-    outputAssembly += generateTrackFromPathSubdiv(path[:, :], rot[:, :])
+	# outputAssembly += generateTrackFromPath(path, rot)
+	# outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
+	outputAssembly += generateTrackFromPathSubdiv(path[:, :], rot[:, :])
 
 # Add path sections to support screw lift
 screwLoadAssembly = sphere(0)
@@ -68,8 +69,15 @@ centerPoints = np.array([liftNoGoZ, liftNoGoZ, liftNoGoZ])
 centerPoints[0, :] = SIZE_X/2 + liftNoGoRad*np.cos(liftNoGoZ)
 centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
 
-noGoPoints = np.concatenate([noGoPoints, centerPoints], axis=1)
+liftNoGoPtCnt = 12
+liftTrackNogo = np.zeros((3, liftNoGoPtCnt*PATH_COUNT))
+for pathIdx in range(PATH_COUNT):
+	angle = np.pi*2*pathIdx/PATH_COUNT
+	liftTrackNogo[0, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.cos(angle)*(SCREW_RAD + MARBLE_RAD*2) + SCREW_POS[0]
+	liftTrackNogo[1, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.sin(angle)*(SCREW_RAD + MARBLE_RAD*2) + SCREW_POS[1]
+	liftTrackNogo[2, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.linspace(0, SIZE_Z, liftNoGoPtCnt)
 
+noGoPoints = np.concatenate([noGoPoints, centerPoints, liftTrackNogo], axis=1)
 
 # Generate supports
 if True:
@@ -80,6 +88,7 @@ if True:
 else:
 	supportGeometry = sphere(0)
 
+	supportGeometry = getShapePathSet(supportPoints, None, sphere(1.5), returnIndividual=True)
 
 
 # Generate base plate connections
@@ -98,7 +107,7 @@ if False:
 # Show screw and marble for example
 #.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
 rotatingScrew = generateCenterScrewRotatingPart()
-rotatingScrew += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
+# rotatingScrew += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
 rotatingScrew = rotatingScrew.translate(SCREW_POS)
 
 # Show no go points
