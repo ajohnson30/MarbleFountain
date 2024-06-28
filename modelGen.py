@@ -22,7 +22,7 @@ from openScadGenerators import *
 outputAssembly = generateCenterScrewRotatingPart()
 outputAssembly.save_as_scad(WORKING_DIR + "Screw.scad")
 
-outputAssembly = cylinder(30, 5, 2)
+outputAssembly = cylinder(90, 5, 2)
 outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
 
 
@@ -43,7 +43,7 @@ for path, rot in zip(pathList, rotList):
 screwLoadAssembly = sphere(0)
 screwLoadSupportAnchors = []
 for pathIdx in range(PATH_COUNT):
-	angle = np.pi*2*pathIdx/PATH_COUNT
+	angle = getPathAnchorAngle(pathIdx)
 	geometry, supportAnchors = generateScrewPathJoins(angle)
 	screwLoadAssembly += geometry
 	screwLoadSupportAnchors.append(supportAnchors+SCREW_POS[:, None])
@@ -64,23 +64,23 @@ noGoPoints[2] -= MARBLE_RAD
 
 # Calculate lift exclusion zone
 liftNoGoRad = SCREW_RAD
-liftNoGoZ = np.arange(BASE_OF_MODEL, SIZE_Z, 0.8)
+liftNoGoZ = np.arange(BASE_OF_MODEL, SIZE_Z, 0.55555)
 centerPoints = np.array([liftNoGoZ, liftNoGoZ, liftNoGoZ])
 centerPoints[0, :] = SIZE_X/2 + liftNoGoRad*np.cos(liftNoGoZ)
 centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
 
-liftNoGoPtCnt = 12
+liftNoGoPtCnt = 20
 liftTrackNogo = np.zeros((3, liftNoGoPtCnt*PATH_COUNT))
 for pathIdx in range(PATH_COUNT):
-	angle = np.pi*2*pathIdx/PATH_COUNT
-	liftTrackNogo[0, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.cos(angle)*(SCREW_RAD + MARBLE_RAD*2) + SCREW_POS[0]
-	liftTrackNogo[1, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.sin(angle)*(SCREW_RAD + MARBLE_RAD*2) + SCREW_POS[1]
+	angle = getPathAnchorAngle(pathIdx)
+	liftTrackNogo[0, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.cos(angle)*(SCREW_RAD + MARBLE_RAD) + SCREW_POS[0]
+	liftTrackNogo[1, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.sin(angle)*(SCREW_RAD + MARBLE_RAD) + SCREW_POS[1]
 	liftTrackNogo[2, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.linspace(0, SIZE_Z, liftNoGoPtCnt)
 
 noGoPoints = np.concatenate([noGoPoints, centerPoints, liftTrackNogo], axis=1)
 
 # Generate supports
-if True:
+if GENERATE_SUPPORTS:
 	visPath = None
 	if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
 	supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
@@ -100,7 +100,7 @@ if False:
 
 # Add path of marble in 3d to check for intersections
 marblePathGeometry = sphere(0)
-for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros_like(fooPath), sphere(MARBLE_RAD/2))
+for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros_like(fooPath), sphere(MARBLE_RAD))
 if False:
 	outputAssembly += marblePathGeometry
 

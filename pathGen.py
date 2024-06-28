@@ -22,14 +22,25 @@ if not os.path.exists(WORKING_DIR):
     # Create the directory
     os.makedirs(WORKING_DIR)
 
-targetHeights = SIZE_Z - np.linspace(0, SIZE_Z, POINT_COUNT)
 
-# Generate initial path
-pathList = []
-for pathIdx in range(PATH_COUNT):
-    path = randomPath(POINT_COUNT, BOUNDING_BOX)
-    path[2, :] = targetHeights[:POINT_COUNT]
-    pathList.append(path)
+targHeightFracs = np.interp(
+    np.linspace(0.0, 1.0, POINT_COUNT),
+    [0.0, 0.9, 1.0],
+    [1.0, 0.075, 0.0]
+)
+targetHeights = SIZE_Z * targHeightFracs
+
+if LOAD_EXISTING_PATH:
+    pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
+    for idx in range(len(pathList)):
+        pathList[idx] = pathList[idx][:, ::2]
+else:
+    # Generate initial path
+    pathList = []
+    for pathIdx in range(PATH_COUNT):
+        path = randomPath(POINT_COUNT, BOUNDING_BOX)
+        path[2, :] = targetHeights[:POINT_COUNT]
+        pathList.append(path)
 
 # Calculate set points at start and end of track
 setPointIndexList = []
@@ -50,7 +61,8 @@ for pathIdx in range(PATH_COUNT):
     setPoints[3, LOCKED_PT_CNT-1:LOCKED_PT_CNT+1] = 0.1
 
     # Init first and last points
-    angle = np.pi*2*pathIdx/PATH_COUNT
+    angle = getPathAnchorAngle(pathIdx)
+    
     # pointRads = np.linspace(SCREW_RAD+PT_SPACING, (LOCKED_PT_CNT+1)*PT_SPACING + SCREW_RAD, LOCKED_PT_CNT)
     pointRads = np.arange(LOCKED_PT_CNT)*PT_SPACING + (SCREW_RAD + PT_SPACING)
     setPoints[0, :LOCKED_PT_CNT] = np.cos(angle)*pointRads + SIZE_X/2
@@ -68,36 +80,6 @@ centerPoints = np.arange(0, SIZE_Z, PT_SPACING)
 centerPoints = np.array([np.zeros_like(centerPoints), np.zeros_like(centerPoints), centerPoints])
 centerPoints[0, :] = SIZE_X/2
 centerPoints[1, :] = SIZE_Y/2
-
-
-
-# # Real time plotting
-# import threading
-# import matplotlib.pyplot as plt
-# from queue import Queue
-# import time
-
-# def plot_data(medianForceMagQueue):
-#     plt.ion()  # Turn on interactive mode
-#     fig, ax = plt.subplots()
-#     data = []
-    
-#     labelList = ["boundingBoxForce", "targHeightForce", "pathNormForce", "noSelfIntersectionForce", "pathAngleForce", "repelForce"]
-    
-#     while True:
-#         while not medianForceMagQueue.empty():
-#             data.append(medianForceMagQueue.get())
-        
-#         ax.clear()
-#         dataNp = np.array(data)
-#         if dataNp.shape[0] > 10:
-#             dataNp = dataNp[5:]
-#         for idx in range(len(data[0])):
-#             ax.plot(dataNp[:, idx], label=labelList[idx])
-#         # ax.plot(data)
-#         plt.legend()
-#         plt.draw()
-#         plt.pause(1)  # Pause to update the plot
 
 if REALTIME_PLOTTING_FORCEMAGS:
     # Start the asynchronous plotting thread
@@ -126,8 +108,17 @@ for pathIteration in range(PATH_ITERS):
     randNoiseFactor = np.interp(
         [pathIteration/PATH_ITERS],
         [0.0, 0.1, 0.6, 0.9, 1.0],
-        [40.0, 10.0, 2.0, 0.0, 0.0]
+        [20.0, 10.0, 2.0, 0.0, 0.0]
     )[0]
+
+    if LOAD_EXISTING_PATH:
+        randNoiseFactor = 0.0
+
+    # randNoiseFactor = np.interp(
+    #     [pathIteration/PATH_ITERS],
+    #     [0.0, 1.0],
+    #     [1.0, 0.0]
+    # )[0]
 
     for pathIdx in range(len(pathList)):
         path = pathList[pathIdx]
@@ -155,7 +146,11 @@ for pathIteration in range(PATH_ITERS):
         # pathXY[2] = 0.0
         # pathNormForce = normalizePathDists(pathXY, PT_SPACING, 10.0)
 
-        pathNormForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)
+        # pathNormForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)
+
+        pathNormForce = normalizePathDists(path,  PT_SPACING, 0.5, maxForce=10.0)
+        pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.3, maxForce=10.0, pointOffset=2)
+        pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.2, maxForce=10.0, pointOffset=3)
         
         # Apply part of each normalization force to adjacent points
         adjMix = 0.0
@@ -174,15 +169,16 @@ for pathIteration in range(PATH_ITERS):
         if APPLY_FORCES_SEPARATELY: path += pathNormForce * moveMult
 
         # Repel away from own path
-        noSelfIntersectionForce = repelPathFromSelf(path, 1, 20, ABSOLUTE_MIN_PT_DIST*5)
+        noSelfIntersectionForce = repelPathFromSelf(path, 1, 30, ABSOLUTE_MIN_PT_DIST*5)
         noSelfIntersectionForce[:2] /= 10
         noSelfIntersectionForce = repelPathFromSelf(path, 3, 0.1, 40)
         if APPLY_FORCES_SEPARATELY: path += noSelfIntersectionForce * moveMult
 
         # Limit path angle
         pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
-        pathAngleForce = correctPathAngle(path, 3.1, 3.14, 0.1)
-        # pathAngleForce = correctPathAngle(path, 2.7, 3.14, 0.3, diffPointOffsetCnt=2) # Apply smoothing function across more points
+        pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
+        pathAngleForce += correctPathAngle(path, 2.8, 3.14, 3.0, diffPointOffsetCnt=2)
+        # pathAngleForceTest = correctPathAngle(path, 2.7, 3.14, 0.3, diffPointOffsetCnt=2) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 2.6, 3.14, 0.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 1.0, 3.1, 1.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 3.0, 3.1, 0.1, flatten=False)
@@ -202,7 +198,7 @@ for pathIteration in range(PATH_ITERS):
             repelForce += repelPoints(path, pathList[cmpIdx], 0.001, 30)
         
         # Repel away from center lift
-        repelForce += repelPoints(path, centerPoints, 4.0, 2*ABSOLUTE_MIN_PT_DIST+SCREW_RAD)
+        repelForce += repelPoints(path, centerPoints, 4.0, 6*MARBLE_RAD+SCREW_RAD)
         if APPLY_FORCES_SEPARATELY: path += repelForce * moveMult
 
         if False:
@@ -252,10 +248,7 @@ for pathIteration in range(PATH_ITERS):
         if SET_ITERATION_MOVE_DISTS:
             sumForce /= magnitude(sumForce)
             moveDist = 10.0 * np.square((PATH_ITERS - pathIteration)/PATH_ITERS)
-            sumForce *= moveDist
-
-                
-        if False:
+            sumForce *= moveDistLOAD_EXISTING_PATH
             # Add points gradually
             if path.shape[1] < POINT_COUNT:
                 newPt = path[:, -1:]
@@ -351,8 +344,6 @@ for pathIteration in range(PATH_ITERS):
 # ax.set_xlabel('X')
 # ax.set_ylabel('Y')
 # ax.set_zlabel('Z')
-
-
 # for pathIdx in range(len(pathList)):
 #     bridgePoints = fullPaths[pathIdx]
 #     path = pathList[pathIdx]
@@ -384,10 +375,4 @@ for pathIteration in range(PATH_ITERS):
 #         ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
 
 
-    
-#     ax.set_aspect('equal', adjustable='box')
-
-
-
-
-input("Exit:")
+    fullPaths

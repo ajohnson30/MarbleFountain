@@ -172,7 +172,7 @@ def generateCenterScrewRotatingPart():
 
 	# Add center shaft
 	maxSupportHeight = np.max(insideRailPath[2]) - SCREW_RAD
-	outputScrewSupports = cylinder(SCREW_RAD, SCREW_RAD/2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	outputScrewSupports = cylinder(SCREW_RAD*2, SCREW_RAD*0.8, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
 
@@ -185,7 +185,10 @@ def generateCenterScrewRotatingPart():
 	# Motor Shaft Cutout
 	if MOTOR_TYPE == 'SMALL_DC':
 		outputScrewSupports -= (cylinder(12, 1.5, 1.5, _fn=HIGHER_RES_FN) & cube([10, 10, 8]).translate([1.5-2.4, -5, 0])).translateZ(BASE_OF_MODEL-2)
-		
+	elif MOTOR_TYPE == 'NEMA17':
+		outputScrewSupports -= (cylinder(20.0, 2.55, 2.55, _fn=HIGHER_RES_FN)).translateZ(BASE_OF_MODEL-2)
+
+
 	# MarblePath for viz
 	if False:
 		marblePath = deepcopy(basePath)
@@ -288,7 +291,13 @@ def generateScrewPathJoins(angle):
 	# Circular feature at top
 	angleSet = np.linspace(-np.arccos(vertRailSideOffset/entryRad), np.pi/2, UPPER_PT_CNT)
 	topRailPath[1, 1:UPPER_PT_CNT+1] = entryRad*np.cos(angleSet)
-	topRailPath[2, 1:UPPER_PT_CNT+1] = SIZE_Z + entryRad*np.sin(angleSet)
+	topRailPath[2, 1:UPPER_PT_CNT+1] = entryRad*np.sin(angleSet)
+	topRailPath[2, 1:UPPER_PT_CNT+1] += 1.5*entryRad*np.interp(
+		np.linspace(0.0, 1.0, UPPER_PT_CNT),
+		[0.0, 0.1, 0.4, 1.0],
+		[0.0, 0.0, 0.9, 1.0]
+	)
+	topRailPath[2, 1:UPPER_PT_CNT+1] += SIZE_Z
 
 	# Save, mirror, save
 	outputGeometry += getShapePathSet(topRailPath, None, railSphere)
@@ -481,7 +490,7 @@ def calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts):
 	posDiffMag[calcDistSubset] = 1 - (distance[calcDistSubset] - POS_DIFF_MIN) / (POS_DIFF_MAX - POS_DIFF_MIN)
 	posDiffMag[distance > POS_DIFF_MAX] = 0
 	
-	repulsiveForces = PEAK_REPULSION_MAG * pow(posDiffMag, 3) * pow(zDiffMag, 3) * posDiff/distance
+	repulsiveForces = PEAK_REPULSION_MAG * pow(posDiffMag, 2.0) * pow(zDiffMag, 2.0) * posDiff/distance
 	return(np.sum(repulsiveForces, axis=1))
 
 # Calculate attraction to other supports
@@ -511,6 +520,14 @@ def calculateBoundarySupportForces(fooCol):
 		if fooCol.currPos[ax] > supportMargin + BOUNDING_BOX[ax]: boundingBoxForce[ax] -= fooCol.currPos[ax]- BOUNDING_BOX[ax]
 	boundingBoxForce *= SUPPORT_BOUNDARY_FORCE_MAG
 	return(boundingBoxForce)
+
+
+# Calculate pull towards center of box
+def calculateCenteringForce(fooCol):
+	centerForce = np.zeros_like(fooCol.sumAcc)
+	for ax in range(len(centerForce)):
+		centerForce[ax] = (BOUNDING_BOX[ax]/2 - fooCol.currPos[ax]) / BOUNDING_BOX[ax]
+	return(centerForce)
 
 # Calculate support paths from anchor and avoid points
 def calculateSupports(anchorPts, avoidPts, visPath=None):
@@ -542,11 +559,12 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 			attractiveForce = calculateAttractiveSupportForces(currentColumns, fooCol)
 			repulsiveForce = calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts)
 			boundaryForce = calculateBoundarySupportForces(fooCol)
-			netForce = attractiveForce + boundaryForce + repulsiveForce
+			centerForce = calculateCenteringForce(fooCol) * PULL_TO_CENTER_MAG
+			netForce = attractiveForce + boundaryForce + repulsiveForce + centerForce
 
 			# Calculate how important this motion is, prioritizing not hitting paths
 			magnitudeOfPriority = magnitude(boundaryForce) + magnitude(repulsiveForce)
-			motionPriorityRatio =  magnitudeOfPriority / (magnitudeOfPriority + magnitude(attractiveForce))
+			motionPriorityRatio =  magnitudeOfPriority / (magnitudeOfPriority + magnitude(attractiveForce) + magnitude(centerForce))
 
 			# Calculate acceleration based purely on force and size
 			fooCol.sumAcc = netForce
@@ -765,7 +783,14 @@ def generateSupports(supportCols):
 		cutout += faceCutout.translate([-frontX/2, -frontY/2, -maxHeight-lipThickness+BASE_OF_MODEL])
 		cutout += cylinder(maxHeight+lipThickness*2, frontY/2-lipDepth, frontY/2-lipDepth).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
 
+	elif MOTOR_TYPE == 'NEMA17':
+		lipThickness = 2
+		maxHeight = 30
+		cutout = cylinder(maxHeight+lipThickness*2, 4.0, 4.0, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+		# cutout += cylinder(maxHeight, 11.1, 11.1, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+
 	cutout += generateCutoutForPrinting().translateZ(BASE_OF_MODEL - BASE_THICKNESS - 1e-3) # Cut out vent holes for SLA printing
+
 
 	supports -= cutout.translate(SCREW_POS)
 
