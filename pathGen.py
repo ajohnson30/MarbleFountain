@@ -201,6 +201,10 @@ for pathIteration in range(PATH_ITERS):
         repelForce += repelPoints(path, centerPoints, 4.0, 6*MARBLE_RAD+SCREW_RAD)
         if APPLY_FORCES_SEPARATELY: path += repelForce * moveMult
 
+        # Do not slope up ever
+        whereZincreases = np.where(path[2, 1:] > path[2, :-1])[0]
+        path[2, whereZincreases] = path[2, whereZincreases+1]
+
         if False:
             ax = plt.figure().add_subplot(projection='3d')
             ax.set_xlabel('X')

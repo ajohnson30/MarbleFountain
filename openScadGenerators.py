@@ -506,7 +506,7 @@ def calculateAttractiveSupportForces(currentColumns, fooCol):
 
 		if distance < 1e-6: distance = 1e-6 # No super low distances (leads to massive acceleration)
 
-		attraction = SUPPORT_ATTRACTION_CONSTANT * cmpCol.size / pow(distance, 3) 
+		attraction = SUPPORT_ATTRACTION_CONSTANT * cmpCol.size / pow(distance, 2) 
 		attractiveForces += attraction * posDiff/distance
 
 	return attractiveForces
@@ -520,7 +520,6 @@ def calculateBoundarySupportForces(fooCol):
 		if fooCol.currPos[ax] > supportMargin + BOUNDING_BOX[ax]: boundingBoxForce[ax] -= fooCol.currPos[ax]- BOUNDING_BOX[ax]
 	boundingBoxForce *= SUPPORT_BOUNDARY_FORCE_MAG
 	return(boundingBoxForce)
-
 
 # Calculate pull towards center of box
 def calculateCenteringForce(fooCol):
@@ -559,19 +558,24 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 			attractiveForce = calculateAttractiveSupportForces(currentColumns, fooCol)
 			repulsiveForce = calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts)
 			boundaryForce = calculateBoundarySupportForces(fooCol)
+
 			centerForce = calculateCenteringForce(fooCol) * PULL_TO_CENTER_MAG
-			netForce = attractiveForce + boundaryForce + repulsiveForce + centerForce
+			centerForce *= np.interp(
+				currentHeight,
+				[20.0, 10.0, 0.0],
+				[1.0, 1.0, 0.0],
+			)
 
 			# Calculate how important this motion is, prioritizing not hitting paths
 			magnitudeOfPriority = magnitude(boundaryForce) + magnitude(repulsiveForce)
 			motionPriorityRatio =  magnitudeOfPriority / (magnitudeOfPriority + magnitude(attractiveForce) + magnitude(centerForce))
 
 			# Calculate acceleration based purely on force and size
-			fooCol.sumAcc = netForce
+			fooCol.sumAcc = attractiveForce + boundaryForce + repulsiveForce + centerForce
 			fooCol.sumAcc /= np.sqrt(np.clip(fooCol.size, 2, 15))
 			accMag = magnitude(fooCol.sumAcc)
 			if accMag > MAX_PARTICLE_ACC:
-				fooCol.sumAcc = fooCol.sumAcc*MAX_PARTICLE_ACC/accMag
+				fooCol.sumAcc = MAX_PARTICLE_ACC*fooCol.sumAcc/accMag
 			# motionPriorityRatio + 
 
 			# Calculate velocity
@@ -795,4 +799,3 @@ def generateSupports(supportCols):
 	supports -= cutout.translate(SCREW_POS)
 
 	return(supports)
-

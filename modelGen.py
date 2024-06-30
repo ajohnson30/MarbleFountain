@@ -39,6 +39,8 @@ for path, rot in zip(pathList, rotList):
 	# outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
 	outputAssembly += generateTrackFromPathSubdiv(path[:, :], rot[:, :])
 
+(outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")
+
 # Add path sections to support screw lift
 screwLoadAssembly = sphere(0)
 screwLoadSupportAnchors = []
@@ -79,6 +81,21 @@ for pathIdx in range(PATH_COUNT):
 
 noGoPoints = np.concatenate([noGoPoints, centerPoints, liftTrackNogo], axis=1)
 
+# Add path of marble in 3d to check for intersections
+marblePathGeometry = sphere(0)
+for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros_like(fooPath), sphere(MARBLE_RAD))
+if False:
+	outputAssembly += marblePathGeometry
+
+# Show screw and marble for example
+#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
+rotatingScrew = generateCenterScrewRotatingPart()
+# rotatingScrew += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
+rotatingScrew = rotatingScrew.translate(SCREW_POS)
+
+
+(screwLoadAssembly + outputAssembly).save_as_scad(WORKING_DIR + "test/FullPath.scad")
+
 # Generate supports
 if GENERATE_SUPPORTS:
 	visPath = None
@@ -98,30 +115,17 @@ if False:
 	for pt in np.swapaxes(supportPoints, 0, 1):
 		outputAssembly += sphere(2).translate(pt)
 
-# Add path of marble in 3d to check for intersections
-marblePathGeometry = sphere(0)
-for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros_like(fooPath), sphere(MARBLE_RAD))
-if False:
-	outputAssembly += marblePathGeometry
-
-# Show screw and marble for example
-#.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
-rotatingScrew = generateCenterScrewRotatingPart()
-# rotatingScrew += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
-rotatingScrew = rotatingScrew.translate(SCREW_POS)
-
 # Show no go points
 noGoDisplay = sphere(0)
 for fooPt in np.swapaxes(noGoPoints, 0, 1):
 	noGoDisplay += sphere(0.4).translate(fooPt)
 os.makedirs(WORKING_DIR+'test/', exist_ok=True)
+(noGoDisplay).save_as_scad(WORKING_DIR + "test/noGo.scad")
 
 (screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
 
 (screwLoadAssembly + outputAssembly + supportGeometry + rotatingScrew).save_as_scad(WORKING_DIR + "test/AllComponentsTogether.scad")
 (((supportGeometry) & marblePathGeometry)).save_as_scad(WORKING_DIR + "test/supportIntersection.scad")
 (supportGeometry).save_as_scad(WORKING_DIR + "test/supports.scad")
-(outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")
 (screwLoadAssembly + rotatingScrew).save_as_scad(WORKING_DIR + "test/screwLoadAssembly.scad")
 
-(noGoDisplay).save_as_scad(WORKING_DIR + "test/noGo.scad")

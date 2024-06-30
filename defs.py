@@ -39,11 +39,11 @@ TRACK_SUPPORT_RAD = 0.75 # Initial radius of track support
 TRACK_SUPPORT_MAX_RAD = 2.0 # Maximum support radius
 SUPPORT_LAYER_HEIGHT = 0.25 # Layer height
 MAX_PARTICLE_VEL = SUPPORT_LAYER_HEIGHT*2.0 # Maximum XY motion between each layer
-MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*2 # Maximum XY acceleration between each layer (except in case of emergency to avoid collision)
+MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*0.8 # Maximum XY acceleration between each layer (except in case of emergency to avoid collision)
 MERGE_RAD = MAX_PARTICLE_VEL # Radius to merge points beneath
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join
 
-PARTICLE_DRAG = 0.85 # Fraction of velocity retained across frames
+PARTICLE_DRAG = 0.9 # Fraction of velocity retained across frames
 SUPPORT_ATTRACTION_CONSTANT = 50.0 # Constant multiplier for attraction force between particles
 SUPPORT_MAX_ATTRACTION_DIST = 100 # DISABLED max attraction distance
 SUPPORT_BOUNDARY_FORCE_MAG = 10.0 # Force of boundary limitation, in force/mm
@@ -55,7 +55,7 @@ Z_DIFF_MAX = 15 # Z difference of max repulsion force
 POS_DIFF_MIN = MARBLE_RAD*1.5 # min XY diff of repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 
-PULL_TO_CENTER_MAG = 1.5
+PULL_TO_CENTER_MAG = 0.03
 
 REALTIME_PLOTTING_FORCEMAGS = False
 REALTIME_PLOTTING_PATHS = False
@@ -83,7 +83,7 @@ MOTOR_TYPE = 'NEMA17'
 
 SCREW_POS = np.array([SIZE_X/2, SIZE_Y/2, 0.0])
 
-WORKING_DIR = 'proc/Print7v2/'
+WORKING_DIR = 'proc/Print8/'
 
 BOUNDING_BOX = np.array([SIZE_X, SIZE_Y, SIZE_Z])
 
