@@ -490,6 +490,9 @@ def calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts):
 	posDiffMag[calcDistSubset] = 1 - (distance[calcDistSubset] - POS_DIFF_MIN) / (POS_DIFF_MAX - POS_DIFF_MIN)
 	posDiffMag[distance > POS_DIFF_MAX] = 0
 	
+	# Zero all forces where repel pt -> curr point slope < 45 deg
+	zDiffMag[distance > zDiff*2] = 0.0
+
 	repulsiveForces = PEAK_REPULSION_MAG * pow(posDiffMag, 2.0) * pow(zDiffMag, 2.0) * posDiff/distance
 	return(np.sum(repulsiveForces, axis=1))
 
@@ -504,9 +507,13 @@ def calculateAttractiveSupportForces(currentColumns, fooCol):
 		posDiff = cmpCol.currPos - fooCol.currPos
 		distance = magnitude(posDiff)
 
+		if distance > SUPPORT_MAX_ATTRACTION_DIST:
+			continue
+
 		if distance < 1e-6: distance = 1e-6 # No super low distances (leads to massive acceleration)
 
-		attraction = SUPPORT_ATTRACTION_CONSTANT * cmpCol.size / pow(distance, 2) 
+		sizeAttractionMag = 1.0 / (1 + np.abs(cmpCol.size - fooCol.size))
+		attraction = SUPPORT_ATTRACTION_CONSTANT * sizeAttractionMag / pow(distance, 3) 
 		attractiveForces += attraction * posDiff/distance
 
 	return attractiveForces
@@ -522,11 +529,31 @@ def calculateBoundarySupportForces(fooCol):
 	return(boundingBoxForce)
 
 # Calculate pull towards center of box
-def calculateCenteringForce(fooCol):
+def calculateCenteringForce(fooCol, targetRadius):
 	centerForce = np.zeros_like(fooCol.sumAcc)
 	for ax in range(len(centerForce)):
-		centerForce[ax] = (BOUNDING_BOX[ax]/2 - fooCol.currPos[ax]) / BOUNDING_BOX[ax]
-	return(centerForce)
+		centerForce[ax] = (BOUNDING_BOX[ax]/2 - fooCol.currPos[ax])
+
+	centerForceMag = magnitude(centerForce)
+	centerForce /= centerForceMag
+
+	# Pull to target radius
+	radDiff = centerForceMag - targetRadius
+	if np.abs(radDiff) > PULL_TO_CENTER_MAXDIST:
+		radDiff = np.sign(radDiff) * PULL_TO_CENTER_MAXDIST
+	radDiff /= PULL_TO_CENTER_MAXDIST
+
+	# Pull larger points to rad more strongly
+	pullMag = np.interp(
+		fooCol.size,
+		[1, 3, 20],
+		[0.0, 0.4, 1.0]
+	)
+
+	# Calculte final force to pull points towards target radius
+	finalForce = centerForce * radDiff * PULL_TO_CENTER_MAG * pullMag
+
+	return(finalForce)
 
 # Calculate support paths from anchor and avoid points
 def calculateSupports(anchorPts, avoidPts, visPath=None):
@@ -548,6 +575,13 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 	for currentHeight in np.arange(np.max(anchorPts[:, 2]), BASE_OF_MODEL, -SUPPORT_LAYER_HEIGHT):
 		layerIdx += 1
 
+		# Target radius of supports to pull towards
+		targetRadius = np.interp(
+			currentHeight,
+			[30.0, 10.0],
+			[6*MARBLE_RAD+SCREW_RAD, OUTPUT_BASE_RAD],
+		)
+
 		# Iterate over existing columns to calculate motion
 		for idx in range(len(currentColumns)):
 			fooCol = currentColumns[idx]
@@ -558,13 +592,7 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 			attractiveForce = calculateAttractiveSupportForces(currentColumns, fooCol)
 			repulsiveForce = calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts)
 			boundaryForce = calculateBoundarySupportForces(fooCol)
-
-			centerForce = calculateCenteringForce(fooCol) * PULL_TO_CENTER_MAG
-			centerForce *= np.interp(
-				currentHeight,
-				[20.0, 10.0, 0.0],
-				[1.0, 1.0, 0.0],
-			)
+			centerForce = calculateCenteringForce(fooCol, targetRadius)
 
 			# Calculate how important this motion is, prioritizing not hitting paths
 			magnitudeOfPriority = magnitude(boundaryForce) + magnitude(repulsiveForce)
@@ -572,7 +600,7 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 
 			# Calculate acceleration based purely on force and size
 			fooCol.sumAcc = attractiveForce + boundaryForce + repulsiveForce + centerForce
-			fooCol.sumAcc /= np.sqrt(np.clip(fooCol.size, 2, 15))
+			fooCol.sumAcc /= np.sqrt(np.clip(fooCol.size, 2, 10))
 			accMag = magnitude(fooCol.sumAcc)
 			if accMag > MAX_PARTICLE_ACC:
 				fooCol.sumAcc = MAX_PARTICLE_ACC*fooCol.sumAcc/accMag
@@ -712,8 +740,17 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 # Calculate radius of column from size
 def getColumnRad(size):
 	# fooRad = TRACK_SUPPORT_RAD*np.sqrt(size)
-	fooRad = TRACK_SUPPORT_RAD*np.log(size*np.e)
-	if fooRad > TRACK_SUPPORT_MAX_RAD: fooRad = TRACK_SUPPORT_MAX_RAD
+
+	# fooRad = TRACK_SUPPORT_RAD*np.log(size*np.e)
+	# if fooRad > TRACK_SUPPORT_MAX_RAD: fooRad = TRACK_SUPPORT_MAX_RAD
+
+	sizeFrac = np.interp(
+		size,
+		[1, 6, 15],
+		[0.0, 0.5, 1.0]
+	)
+	
+	fooRad = sizeFrac*(TRACK_SUPPORT_MAX_RAD - TRACK_SUPPORT_RAD) + TRACK_SUPPORT_RAD
 	return(fooRad)
 
 # Generate supports from calculated columns

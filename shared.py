@@ -199,11 +199,17 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, maxForce=5, diffPointOff
 
 	return outForceVels*outForceMags
 
-def subdividePath(path, only_return_new=False):
+def subdividePath(path, only_return_new=False, neverSlopeUp=True):
 	tck, u = splprep(path, s=0)
 	pathInterp = (u[1:] + u[:-1]) / 2
 	new_points = splev(pathInterp, tck)
 	new_points = np.array(new_points, dtype=np.double)
+
+
+	# Do not slope up ever
+	if neverSlopeUp:
+		whereZincreases = np.where(new_points[2] > path[2, :-1])[0]
+		new_points[2, whereZincreases] = path[2, whereZincreases]
 
 	if only_return_new:
 		return np.array(new_points)

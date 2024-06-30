@@ -169,8 +169,8 @@ for pathIteration in range(PATH_ITERS):
         if APPLY_FORCES_SEPARATELY: path += pathNormForce * moveMult
 
         # Repel away from own path
-        noSelfIntersectionForce = repelPathFromSelf(path, 1, 30, ABSOLUTE_MIN_PT_DIST*5)
-        noSelfIntersectionForce[:2] /= 10
+        noSelfIntersectionForce = repelPathFromSelf(path, 1, 30, ABSOLUTE_MIN_PT_DIST*6)
+        noSelfIntersectionForce[:2] /= 4
         noSelfIntersectionForce = repelPathFromSelf(path, 3, 0.1, 40)
         if APPLY_FORCES_SEPARATELY: path += noSelfIntersectionForce * moveMult
 

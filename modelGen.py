@@ -18,6 +18,9 @@ from defs import *
 from shared import *
 from openScadGenerators import *
 
+# Init test dir
+os.makedirs(WORKING_DIR+'test/', exist_ok=True)
+
 # Save screw base
 outputAssembly = generateCenterScrewRotatingPart()
 outputAssembly.save_as_scad(WORKING_DIR + "Screw.scad")
@@ -60,7 +63,7 @@ supportPoints = np.concatenate(supportAnchors+screwLoadSupportAnchors, axis=1)
 # Get list of all no-go points
 noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
 # noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
-noGoPoints[2] -= MARBLE_RAD
+noGoPoints[2] -= MARBLE_RAD*2.0 # Repel away only upwards at 45 degree angle
 
 # supportAnchorPointsConcat = np.concatenate([anchors for anchors in supportAnchors], axis=1) # get concat supportAnchors
 
@@ -119,7 +122,6 @@ if False:
 noGoDisplay = sphere(0)
 for fooPt in np.swapaxes(noGoPoints, 0, 1):
 	noGoDisplay += sphere(0.4).translate(fooPt)
-os.makedirs(WORKING_DIR+'test/', exist_ok=True)
 (noGoDisplay).save_as_scad(WORKING_DIR + "test/noGo.scad")
 
 (screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(WORKING_DIR + "MarbleRun.scad")
