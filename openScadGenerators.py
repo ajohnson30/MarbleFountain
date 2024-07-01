@@ -414,9 +414,9 @@ def generateTrackFromPathSubdiv(path, rotations):
 	leftSupportOffset = [0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]
 
 	rightTrackSet = [
-		shortRail.translate(rightSupportOffset),
-		medRail.translate(rightSupportOffset),
 		tallRail.translate(rightSupportOffset),
+		medRail.translate(rightSupportOffset),
+		shortRail.translate(rightSupportOffset),
 		medRail.translate(rightSupportOffset),
 	]
 

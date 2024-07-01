@@ -31,7 +31,7 @@ outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
 
 # Load path data
 pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
-pathList = [subdividePath(path) for path in pathList]
+# pathList = [subdividePath(path) for path in pathList]
 rotList = [calculatePathRotations(path) for path in pathList]
 
 outputAssembly = sphere(0)

@@ -79,7 +79,7 @@ SUPPORT_VIS = True # Output support gen visualization
 GENERATE_SUPPORTS = True
 LOAD_EXISTING_PATH = True
 
-UNIVERSAL_FN = 6 # How many sides for each triangle
+UNIVERSAL_FN = 8 # How many sides for each triangle
 HIGHER_RES_FN = 20
 
 # Screw lift
