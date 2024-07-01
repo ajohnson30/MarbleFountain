@@ -5,6 +5,7 @@ from scipy.linalg import norm
 from random import random
 from copy import deepcopy
 import pickle as pkl
+import os
 
 from defs import *
 
@@ -132,7 +133,7 @@ def repelPathFromSelf(path, dropAdjacentPointCnt, peakForce, cutOffDist):
 
 		ptDiffs = fooPt[:, None] - pathSubset
 		ptDists = magnitude(ptDiffs)
-		ptForceMags = (peakForce/cutOffDist) * np.max([cutOffDist - ptDists, np.zeros_like(ptDists)], axis=0)
+		ptForceMags = (peakForce/cutOffDist) * np.clip(cutOffDist - ptDists, 0.0, cutOffDist)
 
 		outForces[:, ptIdx] = np.sum(ptForceMags * (ptDiffs / ptDists), axis=1) 
 
@@ -198,6 +199,89 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, maxForce=5, diffPointOff
 	outForceMags = np.clip(outForceMags, -maxForce, maxForce)
 
 	return outForceVels*outForceMags
+
+# Smooth out change in slope
+def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
+	outForces = np.zeros_like(path)
+
+	zDiffs = np.diff(path[2])
+	xyDist = magnitude(np.diff(path[:2], axis=1))
+	slope = zDiffs/xyDist
+
+	correctSlope = (PT_DROP / PT_SPACING)
+	
+	slopeErr = correctSlope - slope
+	outForces[2, 1:] -= slopeErr*slopeErrMag/2
+	outForces[2, :-1] += slopeErr*slopeErrMag/2
+
+	maxSlopeDelta = correctSlope
+	maxSlopeDeltaCap = maxSlopeDelta*2
+	slopeDiff = np.diff(slope)
+	
+	slopeDiffErrMag = np.interp(
+		slopeDiff,
+		[-maxSlopeDeltaCap, -maxSlopeDelta, maxSlopeDelta, maxSlopeDeltaCap],
+		[-1.0, 0.0, 0.0, 1.0]
+	)
+	outForces[2, 1:-1] = slopeDiffErrMag * forceMag
+
+	return(outForces)
+
+def preventUphillMotion(path, forceMag = 0.1):
+	slopeDownForce = np.zeros_like(path)
+	zVal = path[2]
+	zDiff = np.diff(zVal)
+	startIdx = None
+
+	zTargetMax = deepcopy(zVal)
+	zTargetMin = deepcopy(zVal)
+	for idx in range(len(zVal)):
+		zTargetMax[idx] = np.max(zVal[idx:])
+		zTargetMin[idx] = np.min(zVal[:idx+1])
+	zTargMaxRatio = np.linspace(0.0, 1.0, len(zVal))
+	zTarget = zTargMaxRatio*zTargetMax + (1.0-zTargMaxRatio)*zTargetMin
+	# zTarget = (zTargetMax+zTargetMin) / 2.0
+	slopeDownForce[2] = (zTarget - zVal) * forceMag
+
+
+	# zTarget = deepcopy(zVal)
+	# for idx in range(len(zTarget)):
+	# 	zTarget[idx] = (np.max(zVal[idx:]) + np.min(zVal[:idx+1])) / 2
+	# slopeDownForce[2] = (zTarget - zVal) * forceMag
+
+
+
+	# for idx in range(len(zDiff)-1, -1, -1):
+	# 	if zDiff[idx] > 0.0 and startIdx == None:
+	# 		startIdx = idx
+	# 	if zDiff[idx] < 0.0 and startIdx:
+	# 		zModIdx = np.arange(startIdx, idx)
+	# 		zTargets = np.interp(
+	# 			zModIdx,
+	# 			[startIdx, idx],
+	# 			[zVal[startIdx], zVal[idx]],
+	# 		)
+			
+	# 		slopeDownForce[2, zModIdx] = zTargets - zVal[zModIdx] * forceMag
+			
+	# 		startIdx = None
+	# 		print(f"{startIdx}, {idx}")
+
+		
+	# zIncIdx = np.where( > 0.0)[0]
+	# zIncIdx = np.unique(np.concatenate([zIncIdx, zIncIdx+1]))
+	# valleyStarts = np.where(np.diff(zIncIdx) > 1)[0]
+	# valleyPoints = np.concatenate([[0], valleyStarts+1])
+	
+	# setZValues = np.interp(
+	# 	zIncIdx,
+	# 	zIncIdx[valleyPoints],
+	# 	zVal[zIncIdx[valleyPoints]]
+	# )
+	# slopeDownForce[2, zIncIdx] = (setZValues - zVal[zIncIdx]) * forceMag
+	return(slopeDownForce)
+
+
 
 def subdividePath(path, only_return_new=False, neverSlopeUp=True):
 	tck, u = splprep(path, s=0)
@@ -484,41 +568,91 @@ def plot_paths_real_time(data_queue):
 	while True:
 		while not data_queue.empty():
 			pathList = data_queue.get()
-			fullPaths = [subdividePath(path) for path in pathList]
-
-			ax.clear()
-			
-			for pathIdx in range(len(pathList)):
-				path = pathList[pathIdx]
-				bridgePoints = fullPaths[pathIdx]
-
-
-				# ax.scatter(*centerPoints)
-
-				ax.scatter(*path)
-
-				# ax.scatter(*bridgePoints[:, 1::2], color='purple')
-				ax.plot(*bridgePoints, alpha=0.5)
-
-				# ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
-				# ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
-
-				if True:
-					forceSet = normalizePathDists(path,  PT_SPACING*2, 0.8, maxForce=10.0, pointOffset=2)
-					for idx in range(len(path[0])):
-						pt = path[:, idx]
-						vect = forceSet[:, idx]
-						ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
-
-
-				# # visForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)*5
-				# visForce = correctPathAngle(path, 2.5, 3.14, 1.5, diffPointOffsetCnt=2)
-				# for idx in range(path.shape[1]):
-				# 	pt = path[:, idx]
-				# 	vect = visForce[:, idx]
-				# 	ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
-				
-				ax.set_aspect('equal', adjustable='box')
-
+			plotPath(ax, pathList)
 		plt.draw()
-		plt.pause(3.0)  # Pause to update the plot
+		plt.pause(1.0)  # Pause to update the plot
+
+def plotPath(ax, pathList):
+	ax.clear()
+	
+	for pathIdx in range(len(pathList)):
+		path = pathList[pathIdx][:, ::2]
+		bridgePoints = pathList[pathIdx]
+
+
+		# ax.scatter(*centerPoints)
+
+		ax.scatter(*path)
+
+		# ax.scatter(*bridgePoints[:, 1::2], color='purple')
+		ax.plot(*bridgePoints, alpha=0.5)
+
+		# ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
+		# ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
+
+		if True:
+			forceSet = preventUphillMotion(path, 1.0)
+			for idx in range(len(path[0])):
+				pt = path[:, idx]
+				vect = forceSet[:, idx]
+				ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='black')
+
+
+		# # visForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)*5
+		# visForce = correctPathAngle(path, 2.5, 3.14, 1.5, diffPointOffsetCnt=2)
+		# for idx in range(path.shape[1]):
+		# 	pt = path[:, idx]
+		# 	vect = visForce[:, idx]
+		# 	ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
+		
+		ax.set_xlim(0, SIZE_X)
+		ax.set_ylim(0, SIZE_Y)
+		ax.set_zlim(0, SIZE_Z)
+		ax.set_aspect('equal', adjustable='box')
+
+
+def loadChangesToQueue(file_path, pathQueue):
+	# Load initial value
+	pathList = pkl.load(open(file_path, 'rb'))
+	pathQueue.put(pathList)
+
+	from watchdog.observers import Observer
+	from watchdog.events import FileSystemEventHandler
+
+	class FileChangeHandler(FileSystemEventHandler):
+		def __init__(self, file_path, pathQueue):
+			self.file_path = file_path
+			self.pathQueue = pathQueue
+
+		def on_modified(self, event):
+			if event.src_path == self.file_path and os.path.exists(self.file_path):
+				pathList = pkl.load(open(self.file_path, 'rb'))
+				self.pathQueue.put(pathList)
+
+	event_handler = FileChangeHandler(file_path, pathQueue)
+
+	observer = Observer()
+	observer.schedule(event_handler, path=file_path, recursive=False)
+	observer.start()
+
+
+	try:
+		while True:
+			time.sleep(1.0)
+	except KeyboardInterrupt:
+		observer.stop()
+	observer.join()
+
+
+# If main, plot in separate thread
+if __name__ == '__main__':
+	file_path = WORKING_DIR+'path.pkl'
+
+	# Start the asynchronous data polling thread
+	pathQueue = Queue()
+	pathPlottingThread = threading.Thread(target=loadChangesToQueue, args=(file_path, pathQueue))
+	pathPlottingThread.daemon = True
+	pathPlottingThread.start()
+
+	# Plot in real time on main thread
+	plot_paths_real_time(pathQueue)

@@ -20,8 +20,23 @@ PATH_ITERS = 500 # Number of iterations to optimize too
 RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterations
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
-LESS_RANDOM_INIT_PATH = False # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
+LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
 RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
+
+# Path randomization
+#   Based on max force mag, calculates temperature and temp decay
+#   A positive temp indicates mag of random noise added
+#   A negative temp indicates magnitude of force updates, with -10 being 0
+#   Pairs are (max force mag, noise setting, temp decay)
+DO_DYNAMIC_TEMPERATURE = True
+PATH_RANDOMIZATION_FUNC = np.swapaxes([
+    [10.0, -10.0, 0.05],
+    [13.0, 0.0, 0.05],
+    [13.1, 1.0, 0.05],
+    [20.0, 3.0, 0.1],
+    [25.0, 10.0, 0.2],
+    [100.0, 40.0, 0.5], # Max noise of 20
+], 0, 1)
 
 LOCKED_PT_CNT = 5 # Points locked in a straight line as part of the initial path
 
@@ -44,7 +59,7 @@ MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL # Radius to merge points beneath
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join
 
 PARTICLE_DRAG = 0.8 # Fraction of velocity retained across frames
-SUPPORT_ATTRACTION_CONSTANT = 60.0 # Constant multiplier for attraction force between particles
+SUPPORT_ATTRACTION_CONSTANT = 80.0 # Constant multiplier for attraction force between particles
 SUPPORT_MAX_ATTRACTION_DIST = 50.0 # DISABLED max attraction distance
 SUPPORT_BOUNDARY_FORCE_MAG = 20.0 # Force of boundary limitation, in force/mm
 
@@ -55,14 +70,14 @@ Z_DIFF_MAX = 15 # Z difference of max repulsion force
 POS_DIFF_MIN = MARBLE_RAD*1.5 # min XY diff of repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 
-PULL_TO_CENTER_MAG = 5.0 # Magnitude of force pulling points to target radius
+PULL_TO_CENTER_MAG = 1.0 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
 REALTIME_PLOTTING_FORCEMAGS = False
 REALTIME_PLOTTING_PATHS = False
 SUPPORT_VIS = True # Output support gen visualization
 GENERATE_SUPPORTS = True
-LOAD_EXISTING_PATH = False
+LOAD_EXISTING_PATH = True
 
 UNIVERSAL_FN = 6 # How many sides for each triangle
 HIGHER_RES_FN = 20

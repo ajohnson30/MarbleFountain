@@ -60,6 +60,7 @@ def generateScrewSupports(inputPath, railSphere):
 	outSupports = sphere(0)
 	# for idx in range(int(np.ceil(inputPath.shape[1]/SCREW_SUPPORT_GROUPING))):
 	idx = 0
+	joinPoints = []
 	while True:
 		groupSize = int(np.random.rand()*np.diff(SCREW_SUPPORT_GROUPING) + SCREW_SUPPORT_GROUPING[0])
 		points = inputPath[:, idx:idx+groupSize]
@@ -96,9 +97,15 @@ def generateScrewSupports(inputPath, railSphere):
 				railSphere.translate(joinPoint),
 				railSphere.translate(points[:, ptIdx])
 			])
-
+		
+		joinPoints.append(joinPoint)
 		# 	outSupports += railSphere.translate(points[:, ptIdx])
 		# outSupports += railSphere.translate(centerPoint)
+
+	everyNth = 4
+	joinPointArr = np.swapaxes(joinPoints, 0, 1)
+	for connLoop in range(everyNth):
+		outSupports += getShapePathSet(joinPointArr[:, connLoop::everyNth], None, railSphere)
 
 	return(outSupports)
 
@@ -233,7 +240,7 @@ def generateScrewPathJoins(angle):
 	railPath[2] = zOffsetOfSupportingRail
 
 	# First point matches tracks
-	railPath[0, 0] = PT_SPACING
+	railPath[0, 0] = PT_SPACING*2
 	railPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
 	railPath[2, 0] = -netRad*np.sin(TRACK_CONTACT_ANGLE)
 
@@ -284,7 +291,7 @@ def generateScrewPathJoins(angle):
 	topRailPath[0] = vertRailDistFromSpiral
 
 	# First point matches tracks
-	topRailPath[0, 0] = PT_SPACING
+	topRailPath[0, 0] = PT_SPACING*2
 	topRailPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
 	topRailPath[2, 0] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
 	
@@ -407,9 +414,9 @@ def generateTrackFromPathSubdiv(path, rotations):
 	leftSupportOffset = [0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]
 
 	rightTrackSet = [
-		tallRail.translate(rightSupportOffset),
-		medRail.translate(rightSupportOffset),
 		shortRail.translate(rightSupportOffset),
+		medRail.translate(rightSupportOffset),
+		tallRail.translate(rightSupportOffset),
 		medRail.translate(rightSupportOffset),
 	]
 
@@ -512,8 +519,13 @@ def calculateAttractiveSupportForces(currentColumns, fooCol):
 
 		if distance < 1e-6: distance = 1e-6 # No super low distances (leads to massive acceleration)
 
-		sizeAttractionMag = 1.0 / (1 + np.abs(cmpCol.size - fooCol.size))
-		attraction = SUPPORT_ATTRACTION_CONSTANT * sizeAttractionMag / pow(distance, 3) 
+		sizeAttractionMag = 1.0 / (1 +  np.abs(cmpCol.size - fooCol.size) * np.interp(
+			cmpCol.size,
+			[1, 2, 4, 10],
+			[1.0, 1.0, 0.5, 0.05]
+		))
+		# sizeAttractionMag = 0.4 + 0.6 / (1 + np.sqrt(np.abs()))
+		attraction = SUPPORT_ATTRACTION_CONSTANT * sizeAttractionMag / pow(distance, 2) 
 		attractiveForces += attraction * posDiff/distance
 
 	return attractiveForces
@@ -543,11 +555,12 @@ def calculateCenteringForce(fooCol, targetRadius):
 		radDiff = np.sign(radDiff) * PULL_TO_CENTER_MAXDIST
 	radDiff /= PULL_TO_CENTER_MAXDIST
 
+
 	# Pull larger points to rad more strongly
 	pullMag = np.interp(
 		fooCol.size,
-		[1, 3, 20],
-		[0.0, 0.4, 1.0]
+		[1, 2, 4, 20],
+		[0.0, 0.1, 0.5, 1.0]
 	)
 
 	# Calculte final force to pull points towards target radius
@@ -578,8 +591,8 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 		# Target radius of supports to pull towards
 		targetRadius = np.interp(
 			currentHeight,
-			[30.0, 10.0],
-			[6*MARBLE_RAD+SCREW_RAD, OUTPUT_BASE_RAD],
+			[10.0, 30.0],
+			[OUTPUT_BASE_RAD, 6*MARBLE_RAD+SCREW_RAD],
 		)
 
 		# Iterate over existing columns to calculate motion
@@ -593,6 +606,7 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 			repulsiveForce = calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts)
 			boundaryForce = calculateBoundarySupportForces(fooCol)
 			centerForce = calculateCenteringForce(fooCol, targetRadius)
+			# centerForce = np.zeros_like(centerForce)
 
 			# Calculate how important this motion is, prioritizing not hitting paths
 			magnitudeOfPriority = magnitude(boundaryForce) + magnitude(repulsiveForce)
