@@ -414,11 +414,11 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 
 	# Smooth tilts
 	SMOOTH_CNT = 1
-	SMOOTH_REP = 30
+	SMOOTH_REP = 10
 	currTilts = deepcopy(tilt)
 	for ii in range(SMOOTH_REP):
 		# currTilts = smooth_array(currTilts, SMOOTH_CNT)
-		smoothTilts = np.convolve(tilt, np.ones(int(SMOOTH_CNT*2+1)) / float(SMOOTH_CNT*2+1), mode='valid')
+		smoothTilts = np.convolve(currTilts, np.ones(int(SMOOTH_CNT*2+1)) / float(SMOOTH_CNT*2+1), mode='valid')
 		currTilts[SMOOTH_CNT:-SMOOTH_CNT] = smoothTilts
 		# currTilts = max_by_absolute_value(currTilts, tilt)
 
@@ -552,7 +552,7 @@ def data_processor_and_plotter(data_queue):
 		
 		ax.legend()
 		plt.draw()
-		plt.ylim(0, 1)
+		# plt.ylim(0, 1)
 		plt.pause(1)  # Pause to update the plot
 
 

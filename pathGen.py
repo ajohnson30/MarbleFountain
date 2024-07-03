@@ -23,12 +23,18 @@ if not os.path.exists(WORKING_DIR):
     os.makedirs(WORKING_DIR)
 
 
-targHeightFracs = np.interp(
-    np.linspace(0.0, 1.0, POINT_COUNT),
+startPoints = 3
+targetHeights = np.zeros(POINT_COUNT, dtype=np.double)
+# Set initial points
+targetHeights[:startPoints] = SIZE_Z - PT_DROP*np.arange(startPoints)
+targetHeights[-startPoints:] = PT_DROP*(startPoints-1-np.arange(startPoints))
+# Interpolate rest of points
+targetHeights[startPoints:-startPoints] = (SIZE_Z - PT_DROP*2*startPoints)*np.interp(
+    np.linspace(0.0, 1.0, POINT_COUNT - 2*startPoints),
     [0.0, 0.9, 1.0],
-    [1.0, 0.075, 0.0]
-)
-targetHeights = SIZE_Z * targHeightFracs
+    [1.0, 0.06, 0.0]
+) + PT_DROP*startPoints
+
 
 # Init path points
 if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl'):
@@ -134,6 +140,7 @@ for pathIteration in range(PATH_ITERS):
         if DO_DYNAMIC_TEMPERATURE:
             randNoiseFactor = np.clip(pathTempList[pathIdx], 0.0, np.inf)
             moveMult = (10.0 + np.clip(pathTempList[pathIdx], -10.0, 0.0)) / 10.0
+            # moveMult *= 0.5
 
         # Randomize points a little to add noise to help settle
         randNoiseArray = np.random.rand(*path.shape)
@@ -150,7 +157,10 @@ for pathIteration in range(PATH_ITERS):
         forceList.append(boundingBoxForce)
 
         # Pull towards Z position
-        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.15, 5)
+        if not GLASS_MARBLE_14mm:
+            targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.15, 5)
+        else:
+            targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.5, 5)
         # targHeightForce += pullTowardsTargetSlope(path, -PT_DROP, 0.3, 1.0)
         if APPLY_FORCES_SEPARATELY: path += targHeightForce * moveMult
         forceList.append(targHeightForce)
@@ -186,15 +196,22 @@ for pathIteration in range(PATH_ITERS):
 
         # Repel away from own path
         noSelfIntersectionForce = repelPathFromSelf(path, 2, 2.0, ABSOLUTE_MIN_PT_DIST*1.5)
-        noSelfIntersectionForce[:2] /= 4
+        noSelfIntersectionForce[:2] /= 8
         noSelfIntersectionForce += repelPathFromSelf(path, 4, 0.02, 40)
         if APPLY_FORCES_SEPARATELY: path += noSelfIntersectionForce * moveMult
         forceList.append(noSelfIntersectionForce)
 
         # Limit path angle
-        pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
-        pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
-        pathAngleForce += correctPathAngle(path, 2.8, 3.14, 3.0, diffPointOffsetCnt=2)
+        if not GLASS_MARBLE_14mm:
+            pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
+            # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
+            pathAngleForce += correctPathAngle(path, 2.6, 3.1, 3.0, diffPointOffsetCnt=2)
+            pathAngleForce += correctPathAngle(path, 2.0, 3.1, 1.0, diffPointOffsetCnt=3, flatten=False)
+            pathAngleForce += correctPathAngle(path, 0.5, 3.1, 0.5, diffPointOffsetCnt=4, flatten=False)
+        else:
+            pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
+            # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
+            pathAngleForce += correctPathAngle(path, 2.6, 3.14, 3.0, diffPointOffsetCnt=2)
         # pathAngleForceTest = correctPathAngle(path, 2.7, 3.14, 0.3, diffPointOffsetCnt=2) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 2.6, 3.14, 0.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 1.0, 3.1, 1.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
@@ -214,7 +231,7 @@ for pathIteration in range(PATH_ITERS):
             repelForce += repelPoints(path, pathList[cmpIdx], 1.0, ABSOLUTE_MIN_PT_DIST*3) # Required distance between points
 
             repelForce += repelPoints(path, pathList[cmpIdx], 0.001, 30) # Broadly avoid other paths
-            repelForce += repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 50) # Avoid end points of other paths
+            repelForce += repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 30) # Avoid end points of other paths
             
         
         # Repel away from center lift
@@ -246,7 +263,10 @@ for pathIteration in range(PATH_ITERS):
         # forceList.append(slopeDownForce)
 
 
-        changeInSlopeForce = correctSlopeChange(path, 0.5, 2.0)
+        if not GLASS_MARBLE_14mm:
+            changeInSlopeForce = correctSlopeChange(path, 0.5, 2.0)
+        else:
+            changeInSlopeForce = correctSlopeChange(path, 0.2, 0.5)
         if APPLY_FORCES_SEPARATELY: path += changeInSlopeForce * moveMult # Not sloping up ignores moveMult
         forceList.append(changeInSlopeForce)
 
@@ -363,13 +383,17 @@ for pathIteration in range(PATH_ITERS):
                 print(' ')
 
             if REALTIME_PLOTTING_FORCEMAGS:
+                medianForceMags = [np.max(fooMag) for fooMag in forceMags]
                 medianForceMagQueue.put({
-                    'boundingBoxForce':medianForceMags[0],
-                    'targHeightForce':medianForceMags[1],
-                    'pathNormForce':medianForceMags[2],
-                    'noSelfIntersectionForce':medianForceMags[3],
-                    'pathAngleForce':medianForceMags[4],
-                    'repelForce':medianForceMags[5],
+                     'boundingBoxForce': medianForceMags[0],
+                    'targHeightForce': medianForceMags[1],
+                    'pathNormForce': medianForceMags[2],
+                    'noSelfIntersectionForce': medianForceMags[3], 
+                    'pathAngleForce': medianForceMags[4],
+                    'repelForce': medianForceMags[5],
+                    'downHillForce': medianForceMags[6],
+                    'changeInSlopeForce': medianForceMags[7],
+                    'setPtForce':medianForceMags[8],
                 })
 
             if REALTIME_PLOTTING_PATHS and pathIteration%5 == 0:

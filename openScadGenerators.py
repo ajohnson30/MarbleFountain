@@ -132,6 +132,7 @@ def generateCenterScrewRotatingPart():
 	basePath[1] = np.sin(angle)
 	basePath[2] = zPos
 
+
 	# Bottom rail
 	bottomRailPath = deepcopy(basePath)
 	bottomRailPath[:2] *= SCREW_RAD + SCREW_OUTER_TRACK_DIST
@@ -160,21 +161,27 @@ def generateCenterScrewRotatingPart():
 		
 	# Base inside rail
 	baseInsideRailPath = deepcopy(basePath[:, :SCREW_RESOLUTION+1])
-	baseInsideRailRads = np.ones(baseInsideRailPath.shape[1])
-	baseInsideRailRads *= SCREW_RAD
-	# Decrease part of path rad to allow ball entry
-	decreaseRadCnt = int(np.floor(SCREW_RESOLUTION/3))
-	decreaseRadMags = np.linspace(0, MARBLE_RAD+TRACK_RAD, decreaseRadCnt)
-	baseInsideRailRads[-decreaseRadCnt:] -= decreaseRadMags
-	# baseInsideRailRads[:decreaseRadCnt] -= MARBLE_RAD+TRACK_RAD
-	# baseInsideRailRads[decreaseRadCnt:decreaseRadCnt*2] -= np.flip(decreaseRadMags)
-	baseInsideRailPath[:2] *= baseInsideRailRads
+
 	baseInsideRailPath[2] =  -BASE_POS_DROP # Set all Z to starting pos
 
+	# baseInsideRailRads = np.ones(baseInsideRailPath.shape[1])
+	# baseInsideRailRads *= SCREW_RAD
+	
 	# Start at intersection of bottom rail
 	intersectionIdx = np.where(bottomRailPath[2] > 0.0)[0][0] # Find intersection
 	baseInsideRailPath = baseInsideRailPath[:, intersectionIdx:] # Truncate rail
+
+	# Gradually increase radius
+	baseInsideRailRads = np.interp(
+		np.linspace(0.0, 1.0, baseInsideRailPath.shape[1]),
+		[0.0, 0.2, 0.4, 1.0],
+		[SCREW_RAD, SCREW_RAD, SCREW_RAD-(MARBLE_RAD+TRACK_RAD), SCREW_RAD-(MARBLE_RAD+TRACK_RAD)]
+	)
+	baseInsideRailPath[:2, :] *= baseInsideRailRads
+
 	baseInsideRailPath[:, 0] = bottomRailPath[:, intersectionIdx] # Set starting point to intersection
+
+
 	outputScrew += getShapePathSet(baseInsideRailPath, None, railSphere)
 
 	# Add center shaft
@@ -841,7 +848,10 @@ def generateSupports(supportCols):
 	elif MOTOR_TYPE == 'NEMA17':
 		lipThickness = 2
 		maxHeight = 30
-		cutout = cylinder(maxHeight+lipThickness*2, 4.0, 4.0, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+		# cutout = cylinder(maxHeight+lipThickness*2, 4.0, 4.0, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+		cutout = cylinder(maxHeight+lipThickness*2, 11.05, 11.05, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+		cutout += cylinder(1.0, 12.0, 11.0, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+
 		# cutout += cylinder(maxHeight, 11.1, 11.1, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
 
 	cutout += generateCutoutForPrinting().translateZ(BASE_OF_MODEL - BASE_THICKNESS - 1e-3) # Cut out vent holes for SLA printing
