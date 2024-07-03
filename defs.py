@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print11/'
+WORKING_DIR = 'proc/Print13/'
 if len(sys.argv) > 1:
     WORKING_DIR = sys.argv[1]
 
@@ -17,7 +17,7 @@ BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 5 # distance from one point to the next
 
-PT_DROP = 0.6 # target z drop per pt
+PT_DROP = 0.8    # target z drop per pt
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 
 PATH_COUNT = 4 # Numer of paths to generate

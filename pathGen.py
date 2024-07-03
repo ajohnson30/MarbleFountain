@@ -26,14 +26,16 @@ if not os.path.exists(WORKING_DIR):
 startPoints = 3
 targetHeights = np.zeros(POINT_COUNT, dtype=np.double)
 # Set initial points
-targetHeights[:startPoints] = SIZE_Z - PT_DROP*np.arange(startPoints)
-targetHeights[-startPoints:] = PT_DROP*(startPoints-1-np.arange(startPoints))
+INITIAL_POINT_MULT = 2
+targetHeights[:startPoints] = SIZE_Z - INITIAL_POINT_MULT*PT_DROP*np.arange(startPoints)
+targetHeights[-startPoints:] = INITIAL_POINT_MULT*PT_DROP*(startPoints-1-np.arange(startPoints))
+
 # Interpolate rest of points
-targetHeights[startPoints:-startPoints] = (SIZE_Z - PT_DROP*2*startPoints)*np.interp(
+targetHeights[startPoints:-startPoints] = (SIZE_Z - INITIAL_POINT_MULT*PT_DROP*2*(startPoints+1))*np.interp(
     np.linspace(0.0, 1.0, POINT_COUNT - 2*startPoints),
     [0.0, 0.9, 1.0],
     [1.0, 0.06, 0.0]
-) + PT_DROP*startPoints
+) + INITIAL_POINT_MULT*PT_DROP*(startPoints+1)
 
 
 # Init path points
@@ -195,7 +197,7 @@ for pathIteration in range(PATH_ITERS):
         forceList.append(pathNormForce)
 
         # Repel away from own path
-        noSelfIntersectionForce = repelPathFromSelf(path, 2, 2.0, ABSOLUTE_MIN_PT_DIST*1.5)
+        noSelfIntersectionForce = repelPathFromSelf(path, 2, 2.0, ABSOLUTE_MIN_PT_DIST*2.0)
         noSelfIntersectionForce[:2] /= 8
         noSelfIntersectionForce += repelPathFromSelf(path, 4, 0.02, 40)
         if APPLY_FORCES_SEPARATELY: path += noSelfIntersectionForce * moveMult
@@ -206,8 +208,8 @@ for pathIteration in range(PATH_ITERS):
             pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
             # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
             pathAngleForce += correctPathAngle(path, 2.6, 3.1, 3.0, diffPointOffsetCnt=2)
-            pathAngleForce += correctPathAngle(path, 2.0, 3.1, 1.0, diffPointOffsetCnt=3, flatten=False)
-            pathAngleForce += correctPathAngle(path, 0.5, 3.1, 0.5, diffPointOffsetCnt=4, flatten=False)
+            pathAngleForce += correctPathAngle(path, 2.0, 3.0, 2.0, diffPointOffsetCnt=3)
+            pathAngleForce += correctPathAngle(path, 0.5, 3.0, 1.0, diffPointOffsetCnt=4)
         else:
             pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
             # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)

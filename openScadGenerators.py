@@ -247,7 +247,7 @@ def generateScrewPathJoins(angle):
 	railPath[2] = zOffsetOfSupportingRail
 
 	# First point matches tracks
-	railPath[0, 0] = PT_SPACING*2
+	railPath[0, 0] = PT_SPACING
 	railPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
 	railPath[2, 0] = -netRad*np.sin(TRACK_CONTACT_ANGLE)
 
@@ -298,7 +298,7 @@ def generateScrewPathJoins(angle):
 	topRailPath[0] = vertRailDistFromSpiral
 
 	# First point matches tracks
-	topRailPath[0, 0] = PT_SPACING*2
+	topRailPath[0, 0] = PT_SPACING
 	topRailPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
 	topRailPath[2, 0] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
 	

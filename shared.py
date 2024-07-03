@@ -281,8 +281,6 @@ def preventUphillMotion(path, forceMag = 0.1):
 	# slopeDownForce[2, zIncIdx] = (setZValues - zVal[zIncIdx]) * forceMag
 	return(slopeDownForce)
 
-
-
 def subdividePath(path, only_return_new=False, neverSlopeUp=True):
 	tck, u = splprep(path, s=0)
 	pathInterp = (u[1:] + u[:-1]) / 2
@@ -396,7 +394,7 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	tilt[-LOCKED_PT_CNT:] = 0.0
 
 	# Zero tilt of back and forth motion
-	reversePointDist = 3
+	reversePointDist = 1
 	positiveTurnPoints = np.zeros_like(changeInAngle, dtype=np.int16)
 	positiveTurnPoints[changeInAngle > 0.0] = 1
 	# reversingPoints = np.where((positiveTurnPoints[reversePointDist*2:] == positiveTurnPoints[:-reversePointDist*2]) & (positiveTurnPoints[:-reversePointDist*2] != positiveTurnPoints[reversePointDist:-reversePointDist]))
@@ -525,7 +523,6 @@ def weighted_average_convolution(data, kernel_size=5, sigma=1.0):
 	return result
 
 
-
 import threading
 import matplotlib.pyplot as plt
 from queue import Queue
@@ -609,7 +606,6 @@ def plotPath(ax, pathList):
 		ax.set_ylim(0, SIZE_Y)
 		ax.set_zlim(0, SIZE_Z)
 		ax.set_aspect('equal', adjustable='box')
-
 
 def loadChangesToQueue(file_path, pathQueue):
 	# Load initial value
