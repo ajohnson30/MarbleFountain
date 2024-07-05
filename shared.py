@@ -87,8 +87,12 @@ def getPathDists(path):
 	return magnitude(path[:, 1:] - path[:, :-1])
 
 # Normalize distances between points
-def normalizePathDists(path, targDist, forcePerDist, maxForce = 5.0, pointOffset = 1):
-	pathDiffs = path[:, pointOffset:] - path[:, :-pointOffset]
+def normalizePathDists(path, targDist, forcePerDist, maxForce = 5.0, pointOffset = 1, dropZ = True):
+	if dropZ:
+		axisCap = 2
+	else:
+		axisCap = 3
+	pathDiffs = path[:axisCap, pointOffset:] - path[:axisCap, :-pointOffset]
 	pathDists = magnitude(pathDiffs)
 
 	pathNorms = pathDiffs / pathDists
@@ -99,8 +103,8 @@ def normalizePathDists(path, targDist, forcePerDist, maxForce = 5.0, pointOffset
 	# forceMags = np.max([forceMags, np.zeros_like(forceMags)-10], axis=0)
 
 	outForces = np.zeros_like(path)
-	outForces[:, :-pointOffset] -= forceMags * pathNorms
-	outForces[:, pointOffset:] += forceMags * pathNorms
+	outForces[:axisCap, :-pointOffset] -= forceMags * pathNorms
+	outForces[:axisCap, pointOffset:] += forceMags * pathNorms
 
 	# print(forceMags)
 	return outForces
@@ -364,10 +368,10 @@ def update_path_curvature(path, min_radius, max_radius, updateMag=1.0, maxMag=5.
 
 # Calculate curvature force in one pass for both pathgen and plotting
 def tempCurvatureCalc(path):
-	pathAngleForce = update_path_curvature(path, 20.0, 1e6, 0.1, 0.5, offset=1)
-	pathAngleForce += update_path_curvature(path, 30.0, 1e6, 0.04, 0.5, offset=2, curvInflectionLimits=(1, 4, 300.0))
-	pathAngleForce += update_path_curvature(path, 30.0, 1e6, 0.03, 1.5, offset=3, curvInflectionLimits=(1, 4, 300.0))
-	pathAngleForce += update_path_curvature(path, 30.0, 100.0, 0.02, 3.0, offset=4)
+	pathAngleForce = update_path_curvature(path, 15.0, 1e6, 0.2, 1.0, offset=1)
+	pathAngleForce += update_path_curvature(path, 20.0, 1e6, 0.04, 0.5, offset=2, curvInflectionLimits=(1, 4, 300.0))
+	pathAngleForce += update_path_curvature(path, 20.0, 80, 0.03, 1.5, offset=3, curvInflectionLimits=(1, 4, 300.0))
+	pathAngleForce += update_path_curvature(path, 25.0, 100.0, 0.02, 3.0, offset=4)
 
 	# for axis in range(3): pathAngleForce[axis] = smooth_array(pathAngleForce[axis], 2)
 
@@ -572,21 +576,22 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	tilt[-LOCKED_PT_CNT:] = 0.0
 
 	# Zero tilt of back and forth motion
-	reversePointDist = 1
-	positiveTurnPoints = np.zeros_like(changeInAngle, dtype=np.int16)
-	positiveTurnPoints[changeInAngle > 0.0] = 1
-	# reversingPoints = np.where((positiveTurnPoints[reversePointDist*2:] == positiveTurnPoints[:-reversePointDist*2]) & (positiveTurnPoints[:-reversePointDist*2] != positiveTurnPoints[reversePointDist:-reversePointDist]))
-	reversingPoints = np.where((positiveTurnPoints[reversePointDist*2:] != positiveTurnPoints[reversePointDist:-reversePointDist]) | (positiveTurnPoints[:-reversePointDist*2] != positiveTurnPoints[reversePointDist:-reversePointDist]))
-	
-	tilt[reversingPoints] = 0.0
+	if False:
+		reversePointDist = 1
+		positiveTurnPoints = np.zeros_like(changeInAngle, dtype=np.int16)
+		positiveTurnPoints[changeInAngle > 0.0] = 1
+		# reversingPoints = np.where((positiveTurnPoints[reversePointDist*2:] == positiveTurnPoints[:-reversePointDist*2]) & (positiveTurnPoints[:-reversePointDist*2] != positiveTurnPoints[reversePointDist:-reversePointDist]))
+		reversingPoints = np.where((positiveTurnPoints[reversePointDist*2:] != positiveTurnPoints[reversePointDist:-reversePointDist]) | (positiveTurnPoints[:-reversePointDist*2] != positiveTurnPoints[reversePointDist:-reversePointDist]))
+		
+		tilt[reversingPoints] = 0.0
 
 	preClipTilt = deepcopy(tilt)
 
 	# Multiply by slopeConv
 	tilt = smoothByNextN(deepcopy(tilt), 5)*slopeConv*3
 	
-	# Limit max rotation
-	tilt = np.clip(tilt, -TRACK_MAX_TILT, TRACK_MAX_TILT)
+	# Limit max rotation a little to prevent hard turns from blowing out resolution
+	tilt = np.clip(tilt, -TRACK_MAX_TILT*2, TRACK_MAX_TILT*2)
 
 	# Smooth tilts
 	SMOOTH_CNT = 1
@@ -598,6 +603,8 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 		currTilts[SMOOTH_CNT:-SMOOTH_CNT] = smoothTilts
 		# currTilts = max_by_absolute_value(currTilts, tilt)
 
+	# Limit max rotation
+	currTilts = np.clip(currTilts, -TRACK_MAX_TILT, TRACK_MAX_TILT)
 
 
 	# # Reduce initial tilts

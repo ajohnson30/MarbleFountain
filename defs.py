@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print13/'
+WORKING_DIR = 'proc/Print12/'
 if len(sys.argv) > 1:
     WORKING_DIR = sys.argv[1]
 
@@ -27,8 +27,8 @@ PATH_ITERS = 1000 # Number of iterations to optimize too
 RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterations
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
-LESS_RANDOM_INIT_PATH = False # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
+LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
+RANDOM_CNT = 10 # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay
@@ -37,9 +37,9 @@ RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
 #   Pairs are (max force mag, noise setting, temp decay)
 DO_DYNAMIC_TEMPERATURE = True
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
-    [10.0, -10.0, 0.04],
-    [18.0, 0.0, 0.05],
-    [18.1, 1.0, 0.05],
+    [9.0, -10.0, 0.05],
+    [12.0, 0.0, 0.1],
+    [12.1, 1.0, 0.1],
     [20.0, 3.0, 0.05],
     [25.0, 10.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20
@@ -90,7 +90,7 @@ PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
 REALTIME_PLOTTING_FORCEMAGS = True
 REALTIME_PLOTTING_PATHS = False
-SUPPORT_VIS = True # Output support gen visualization
+SUPPORT_VIS = False # Output support gen visualization
 GENERATE_SUPPORTS = True
 LOAD_EXISTING_PATH = True
 
@@ -112,7 +112,7 @@ if GLASS_MARBLE_14mm:
 
 # Entry and exit connections
 END_PATH_OFFSET = MARBLE_RAD * (1 + np.sin(TRACK_CONTACT_ANGLE))
-SCREW_VERT_RAIL_MARGIN = -0.4 # Margin between bottom rail and vertical lift supports
+SCREW_VERT_RAIL_MARGIN = -0.25 # Margin between bottom rail and vertical lift supports
 
 MOTOR_TYPE = 'SMALL_DC'
 MOTOR_TYPE = 'NEMA17'

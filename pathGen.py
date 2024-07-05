@@ -141,6 +141,11 @@ pathTempList = np.array([0.0 for idx in range(len(pathList))])
 for pathIteration in range(PATH_ITERS):
     pathFrac = pathIteration/PATH_ITERS
 
+
+    if pathTempList.all() == -10.0:
+        print(f"Paths converged, exiting early")
+        break
+
     # pathTempList[:] = np.max(pathTempList)
 
     if DO_DYNAMIC_TEMPERATURE:
@@ -193,7 +198,7 @@ for pathIteration in range(PATH_ITERS):
         if not GLASS_MARBLE_14mm:
             targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.15, 5)
         else:
-            targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.5, 5)
+            targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 1.0, 300)
         # targHeightForce += pullTowardsTargetSlope(path, -PT_DROP, 0.3, 1.0)
         if APPLY_FORCES_SEPARATELY: path += targHeightForce * moveMult
         forceList.append(targHeightForce)
@@ -205,7 +210,7 @@ for pathIteration in range(PATH_ITERS):
 
         # pathNormForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)
 
-        pathNormForce = normalizePathDists(path,  PT_SPACING, 0.5, maxForce=10.0)
+        pathNormForce = normalizePathDists(path,  PT_SPACING, 0.5, maxForce=10.0, dropZ=False)
         pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.3, maxForce=10.0, pointOffset=2)
         pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.2, maxForce=10.0, pointOffset=3)
         
@@ -229,7 +234,7 @@ for pathIteration in range(PATH_ITERS):
 
         # Repel away from own path
         noSelfIntersectionForce = repelPathFromSelf(path, 2, 2.0, ABSOLUTE_MIN_PT_DIST*2.0)
-        noSelfIntersectionForce[:2] /= 8
+        noSelfIntersectionForce[:2] /= 4
         noSelfIntersectionForce += repelPathFromSelf(path, 4, 0.02, 40)
         if APPLY_FORCES_SEPARATELY: path += noSelfIntersectionForce * moveMult
         forceList.append(noSelfIntersectionForce)
@@ -263,14 +268,14 @@ for pathIteration in range(PATH_ITERS):
         repelForce = np.zeros_like(path)
         for cmpIdx in range(len(pathList)):
             if pathIdx == cmpIdx: continue
-            absoluteMinPathForce = repelPoints(path, pathList[cmpIdx], 5.0, ABSOLUTE_MIN_PT_DIST*1.5) # Absolute required distance between points, only inpacts Z
-            absoluteMinPathForce[:2] /= 20.0
+            absoluteMinPathForce = repelPoints(path, pathList[cmpIdx], 5.0, ABSOLUTE_MIN_PT_DIST*2.0) # Absolute required distance between points, only inpacts Z
+            absoluteMinPathForce[:2] /= 4
             repelForce += absoluteMinPathForce
 
-            repelForce += repelPoints(path, pathList[cmpIdx], 1.0, ABSOLUTE_MIN_PT_DIST*3) # Required distance between points
+            # repelForce += repelPoints(path, pathList[cmpIdx], 1.0, ABSOLUTE_MIN_PT_DIST*3) # Required distance between points
 
-            repelForce += repelPoints(path, pathList[cmpIdx], 0.001, 30) # Broadly avoid other paths
-            repelForce += repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 30) # Avoid end points of other paths
+            repelForce += repelPoints(path, pathList[cmpIdx], 0.001, 20) # Broadly avoid other paths
+            repelForce += repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 20) # Avoid end points of other paths
             
         
         # Repel away from center lift
@@ -280,6 +285,8 @@ for pathIteration in range(PATH_ITERS):
 
         # Do not slope up ever
         downHillForce = preventUphillMotion(path, 1.0)
+        if randNoiseFactor > 15.0:
+            downHillForce = np.zeros_like(downHillForce)
         if APPLY_FORCES_SEPARATELY: path += downHillForce * moveMult
         forceList.append(downHillForce)
 
@@ -305,9 +312,10 @@ for pathIteration in range(PATH_ITERS):
         if not GLASS_MARBLE_14mm:
             changeInSlopeForce = correctSlopeChange(path, 0.5, 2.0)
         else:
-            changeInSlopeForce = correctSlopeChange(path, 0.2, 0.5)
+            changeInSlopeForce = correctSlopeChange(path, 0.05, 0.5)
+
+        if randNoiseFactor > 12.0: changeInSlopeForce = np.zeros_like(changeInSlopeForce)
         if APPLY_FORCES_SEPARATELY: path += changeInSlopeForce * moveMult # Not sloping up ignores moveMult
-        changeInSlopeForce = np.zeros_like(changeInSlopeForce)
         forceList.append(changeInSlopeForce)
 
 
@@ -404,7 +412,7 @@ for pathIteration in range(PATH_ITERS):
         pathList[pathIdx] = path
 
         # Plot forces for first map
-        if pathIdx == 0:
+        if pathIdx == PATH_COUNT-1:
             if not DO_DYNAMIC_TEMPERATURE:
                 medianForceMags = [np.median(fooMag) for fooMag in forceMags]
                 print("{:4d} {:1.3f} {:1.3f} |".format(
