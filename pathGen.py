@@ -51,6 +51,37 @@ else:
         path[2, :] = targetHeights[:POINT_COUNT]
         pathList.append(path)
 
+if False:
+    diffPointOffsetCnt = 1
+
+    path = pathList[0]
+    centerVect, radii = approximatePathCurvature(path, diffPointOffsetCnt)
+    plt.plot(1/radii)
+
+    # Calculate vectors and normals to preceding and succeeding point
+    pathDiffs = path[:, diffPointOffsetCnt:] - path[:, :-diffPointOffsetCnt]
+    nextPtVect = pathDiffs[:, diffPointOffsetCnt:]
+    prevPtVect = -pathDiffs[:, :-diffPointOffsetCnt]
+
+    prevNorm = prevPtVect/magnitude(prevPtVect)
+    nextNorm = nextPtVect/magnitude(nextPtVect)
+
+    # Calculate angle between prev and next vector
+    dotProducts = np.zeros(nextPtVect.shape[1])
+    for idx in range(len(dotProducts)): 
+        dotProducts[idx] = np.dot(nextNorm[:, idx], prevNorm[:, idx])
+
+    angles = np.arccos(np.clip(dotProducts, -1.0, 1.0))
+
+    plt.plot(angles/np.pi)
+
+
+
+
+    plt.show()
+    exit()
+
+
 # Calculate set points at start and end of track
 setPointIndexList = []
 setPointList = []
@@ -204,16 +235,22 @@ for pathIteration in range(PATH_ITERS):
         forceList.append(noSelfIntersectionForce)
 
         # Limit path angle
-        if not GLASS_MARBLE_14mm:
-            pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
-            # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
-            pathAngleForce += correctPathAngle(path, 2.6, 3.1, 3.0, diffPointOffsetCnt=2)
-            pathAngleForce += correctPathAngle(path, 2.0, 3.0, 2.0, diffPointOffsetCnt=3)
-            pathAngleForce += correctPathAngle(path, 0.5, 3.0, 1.0, diffPointOffsetCnt=4)
-        else:
-            pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
-            # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
-            pathAngleForce += correctPathAngle(path, 2.6, 3.14, 3.0, diffPointOffsetCnt=2)
+        if False:
+            if not GLASS_MARBLE_14mm:
+                pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
+                # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
+                pathAngleForce += correctPathAngle(path, 2.6, 3.1, 3.0, diffPointOffsetCnt=2)
+                pathAngleForce += correctPathAngle(path, 2.0, 3.0, 2.0, diffPointOffsetCnt=3)
+                pathAngleForce += correctPathAngle(path, 0.5, 3.0, 1.0, diffPointOffsetCnt=4)
+            else:
+                pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
+                # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
+                pathAngleForce += correctPathAngle(path, 2.6, 3.14, 3.0, diffPointOffsetCnt=2)
+
+        # Limit path curvature
+        if True:
+            pathAngleForce = tempCurvatureCalc(path)
+
         # pathAngleForceTest = correctPathAngle(path, 2.7, 3.14, 0.3, diffPointOffsetCnt=2) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 2.6, 3.14, 0.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 1.0, 3.1, 1.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
@@ -270,6 +307,7 @@ for pathIteration in range(PATH_ITERS):
         else:
             changeInSlopeForce = correctSlopeChange(path, 0.2, 0.5)
         if APPLY_FORCES_SEPARATELY: path += changeInSlopeForce * moveMult # Not sloping up ignores moveMult
+        changeInSlopeForce = np.zeros_like(changeInSlopeForce)
         forceList.append(changeInSlopeForce)
 
 

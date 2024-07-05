@@ -23,7 +23,7 @@ POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 PATH_COUNT = 4 # Numer of paths to generate
 
 # Path gen optimization
-PATH_ITERS = 500 # Number of iterations to optimize too
+PATH_ITERS = 1000 # Number of iterations to optimize too
 RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterations
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
@@ -37,10 +37,10 @@ RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
 #   Pairs are (max force mag, noise setting, temp decay)
 DO_DYNAMIC_TEMPERATURE = True
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
-    [10.0, -10.0, 0.05],
+    [10.0, -10.0, 0.04],
     [18.0, 0.0, 0.05],
     [18.1, 1.0, 0.05],
-    [20.0, 3.0, 0.1],
+    [20.0, 3.0, 0.05],
     [25.0, 10.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20
 ], 0, 1)
@@ -88,7 +88,7 @@ POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 PULL_TO_CENTER_MAG = 1.0 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-REALTIME_PLOTTING_FORCEMAGS = False
+REALTIME_PLOTTING_FORCEMAGS = True
 REALTIME_PLOTTING_PATHS = False
 SUPPORT_VIS = True # Output support gen visualization
 GENERATE_SUPPORTS = True

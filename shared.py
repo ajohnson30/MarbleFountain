@@ -200,6 +200,184 @@ def correctPathAngle(path, minAng, maxAng, forcePerRad, maxForce=5, diffPointOff
 
 	return outForceVels*outForceMags
 
+
+
+
+
+# Calculate the tangent circle made using each set of three points
+def approximatePathCurvature(path, offset=1):
+	# (This portion written by Claude AI, seems very close to working but I mostly only need XY)
+	N = path.shape[1]
+	
+	if N <= 2 * offset:
+		return np.zeros_like(path[:, :1])
+
+	# Create views of the path array for p1, p2, and p3
+	p1 = path[:, :-2*offset]
+	p2 = path[:, offset:-offset]
+	p3 = path[:, 2*offset:]
+
+	# Calculate vectors
+	v1 = p2 - p1
+	v2 = p3 - p1
+	v3 = p3 - p2
+
+	# Calculate cross products
+	cross = np.cross(v1, v2, axis=0)
+
+	# Calculate radii
+	numerator = np.linalg.norm(v1, axis=0) * np.linalg.norm(v2, axis=0) * np.linalg.norm(v3, axis=0)
+	denominator = 2 * np.abs(cross)
+	radii = np.where(denominator != 0, numerator / denominator, np.inf)
+
+	# Calculate vectors to circle centers 
+	normCenterVect = (np.cross(v3, cross, axis=0) * np.linalg.norm(v1, axis=0)**2 + 
+				np.cross(cross, v1, axis=0) * np.linalg.norm(v3, axis=0)**2) / (4 * cross**2)
+	
+	# Handle cases where cross is zero (points are collinear)
+	normCenterVect = np.where(cross == 0, np.inf, normCenterVect)
+	normCenterVect /= np.linalg.norm(normCenterVect, axis=0)
+	
+	# Calculate vectors to circle centers
+	centerVect = radii*normCenterVect
+	
+	centerVectPrev = centerVect+v1
+	centerVectPrev /= np.linalg.norm(centerVectPrev, axis=0)
+
+	centerVectNext = centerVect-v3
+	centerVectNext /= np.linalg.norm(centerVectNext, axis=0)
+
+	# Return radius and vectors to center from p1, p2, & p3
+	return radii, centerVectPrev, normCenterVect, centerVectNext
+
+# Calculate the tangent circle made using each set of three points in XY plane
+def approximatePathCurvatureXY(path, offset=1, includeCurvatureDir=False):
+	N = path.shape[1]
+	
+	if N <= 2 * offset:
+		return np.zeros_like(path[:, :1])
+
+	# Create views of the path array for p1, p2, and p3
+	p1 = path[:2, :-2*offset]
+	p2 = path[:2, offset:-offset]
+	p3 = path[:2, 2*offset:]
+
+	# Calculate vectors
+	v1 = p2 - p1
+	v2 = p3 - p1
+	v3 = p3 - p2
+
+	# Calculate cross products
+	cross = np.cross(v1, v2, axis=0)
+
+	# Calculate radii
+	numerator = np.linalg.norm(v1, axis=0) * np.linalg.norm(v2, axis=0) * np.linalg.norm(v3, axis=0)
+	denominator = 2 * np.abs(cross)
+	radii = np.where(denominator != 0, numerator / denominator, np.inf) # Handle zero case
+
+	# Calculate vector to circle center
+	normCenterVect = -v1/np.linalg.norm(v1, axis=0) + v3/np.linalg.norm(v3, axis=0)
+	normCenterVect /= np.linalg.norm(normCenterVect, axis=0)
+
+	# Calculate vectors to circle centers
+	centerVect = radii*normCenterVect
+	
+	centerVectPrev = centerVect+v1
+	centerVectPrev /= np.linalg.norm(centerVectPrev, axis=0)
+
+	centerVectNext = centerVect-v3
+	centerVectNext /= np.linalg.norm(centerVectNext, axis=0)
+	
+	if includeCurvatureDir:
+		return radii, centerVectPrev, normCenterVect, centerVectNext, np.sign(cross)
+
+	# Return radius and vectors to center from p1, p2, & p3
+	return radii, centerVectPrev, normCenterVect, centerVectNext
+
+# Helper function to calculate how long it's been since the path changed directions
+# Written entirely by Claude AI
+def distance_to_sign_change(arr):
+    # Ensure the input is a NumPy array
+    arr = np.asarray(arr)
+    
+    # # Check if the array contains only +1 and -1
+    # if not np.all(np.abs(arr) == 1):
+    #     raise ValueError("Array must contain only +1 and -1")
+
+    # Calculate the difference between adjacent elements
+    diff = np.diff(arr)
+    
+    # Find indices where the sign changes (diff will be +2 or -2)
+    change_indices = np.where(np.abs(diff) == 2)[0]
+    
+    if len(change_indices) == 0:
+        # If no sign changes, return an array of the maximum possible distance
+        return np.full_like(arr, len(arr) - 1)
+    
+    # Calculate distances to the left and right sign changes
+    dist_left = np.arange(len(arr))[:, None] - change_indices
+    dist_right = change_indices - np.arange(len(arr))[:, None]
+    
+    # Combine distances, ignoring negative values
+    dist = np.where(dist_left < 0, dist_right, dist_left)
+    dist = np.where(dist_right < 0, dist_left, dist)
+    
+    # Return the minimum distance for each index
+    return np.min(dist, axis=1)
+
+# Correct path curvature by calculating radius of tangent cirle
+# This is more resiliant to changes in point spacing
+def update_path_curvature(path, min_radius, max_radius, updateMag=1.0, maxMag=5.0, offset=1, curvInflectionLimits = None):
+	N = path.shape[1]
+
+	if N <= 2 * offset:
+		return updates
+
+	# Get normal vectors to center points of curvature
+	radii, centerVectPrev, normCenterVect, centerVectNext, curvatureSign = approximatePathCurvatureXY(path, offset=offset, includeCurvatureDir=True)
+
+
+
+	if curvInflectionLimits != None:
+		min_radius = np.interp(
+			distance_to_sign_change(curvatureSign),
+			[curvInflectionLimits[0], curvInflectionLimits[1]],
+			[curvInflectionLimits[2], min_radius]
+		)
+
+
+
+	# Calculate magnitude of force correction
+	forceMags = np.zeros_like(radii)
+	forceMags = np.max([min_radius-radii, forceMags], axis=0)
+	forceMags = np.min([max_radius-radii, forceMags], axis=0)
+	forceMags *= updateMag
+	forceMags = np.clip(forceMags, -maxMag, maxMag) # Clip to max update
+
+
+	updates = np.zeros_like(path)
+	updates[:2, :-2*offset] -= forceMags * centerVectPrev / 2
+	updates[:2, offset:-offset] += forceMags * normCenterVect / 2
+	updates[:2, 2*offset:] -= forceMags * centerVectNext / 2
+	
+	return updates
+
+# Calculate curvature force in one pass for both pathgen and plotting
+def tempCurvatureCalc(path):
+	pathAngleForce = update_path_curvature(path, 20.0, 1e6, 0.1, 0.5, offset=1)
+	pathAngleForce += update_path_curvature(path, 30.0, 1e6, 0.04, 0.5, offset=2, curvInflectionLimits=(1, 4, 300.0))
+	pathAngleForce += update_path_curvature(path, 30.0, 1e6, 0.03, 1.5, offset=3, curvInflectionLimits=(1, 4, 300.0))
+	pathAngleForce += update_path_curvature(path, 30.0, 100.0, 0.02, 3.0, offset=4)
+
+	# for axis in range(3): pathAngleForce[axis] = smooth_array(pathAngleForce[axis], 2)
+
+	# outputForce = np.zeros_like(pathAngleForce)
+	# outputForce = deepcopy(pathAngleForce)
+	# outputForce[:, 1:] = pathAngleForce[:, :-1]
+	# outputForce[:, :-1] = pathAngleForce[:, 1:]
+
+	return(pathAngleForce)
+
 # Smooth out change in slope
 def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
 	outForces = np.zeros_like(path)
@@ -577,6 +755,7 @@ def plotPath(ax, pathList):
 		bridgePoints = pathList[pathIdx]
 
 
+
 		# ax.scatter(*centerPoints)
 
 		ax.scatter(*path)
@@ -587,8 +766,35 @@ def plotPath(ax, pathList):
 		# ax.scatter(*path[:, :LOCKED_PT_CNT], color='red')
 		# ax.scatter(*path[:, -LOCKED_PT_CNT:], color='red')
 
+		if False:
+			offset = 1
+			forceSet = np.zeros_like(path)
+			
+			testPath = path
+			if True:
+				rad, cv1, cv2, cv3 = approximatePathCurvatureXY(testPath, offset=offset)
+				cv1 = np.array([*cv1, np.zeros(cv1.shape[1])])
+				cv2 = np.array([*cv2, np.zeros(cv2.shape[1])])
+				cv3 = np.array([*cv3, np.zeros(cv3.shape[1])])
+			else:
+				rad, cv1, cv2, cv3 = approximatePathCurvature(testPath, offset=offset)
+
+			rad = 5
+			cv1 *= rad
+			cv2 *= rad
+			cv3 *= rad
+			
+			for ii in range(cv1.shape[1]):
+				# plt.plot(*zip(testPath[:, ii], testPath[:, ii] + cv1[:, ii]), color='purple')
+				plt.plot(*zip(testPath[:, ii+offset], testPath[:, ii+offset] + cv2[:, ii]), color='red')
+				# plt.plot(*zip(testPath[:, ii+2*offset], testPath[:, ii+2*offset] + cv3[:, ii]), color='orange')
+
+
+			
 		if True:
-			forceSet = preventUphillMotion(path, 1.0)
+			offset = 1
+			forceSet = tempCurvatureCalc(path)
+
 			for idx in range(len(path[0])):
 				pt = path[:, idx]
 				vect = forceSet[:, idx]
@@ -602,10 +808,10 @@ def plotPath(ax, pathList):
 		# 	vect = visForce[:, idx]
 		# 	ax.plot(*np.swapaxes([pt, vect+pt], 0, 1), color='orange')
 		
-		ax.set_xlim(0, SIZE_X)
-		ax.set_ylim(0, SIZE_Y)
-		ax.set_zlim(0, SIZE_Z)
-		ax.set_aspect('equal', adjustable='box')
+	ax.set_xlim(0, SIZE_X)
+	ax.set_ylim(0, SIZE_Y)
+	ax.set_zlim(0, SIZE_Z)
+	ax.set_aspect('equal', adjustable='box')
 
 def loadChangesToQueue(file_path, pathQueue):
 	# Load initial value
@@ -622,8 +828,11 @@ def loadChangesToQueue(file_path, pathQueue):
 
 		def on_modified(self, event):
 			if event.src_path == self.file_path and os.path.exists(self.file_path):
-				pathList = pkl.load(open(self.file_path, 'rb'))
-				self.pathQueue.put(pathList)
+				try:
+					pathList = pkl.load(open(self.file_path, 'rb'))
+					self.pathQueue.put(pathList)
+				except:
+					print(f"Faield to load path")
 
 	event_handler = FileChangeHandler(file_path, pathQueue)
 
@@ -652,3 +861,41 @@ if __name__ == '__main__':
 
 	# Plot in real time on main thread
 	plot_paths_real_time(pathQueue)
+
+
+
+	# Test path curvature
+	if True:
+		testPath = np.array([
+			[0, 1, 2, 3, 4, 4.5],
+			[1, 0, 1, 0, 0, -0.75]
+		])
+
+		offset = 2
+		rad, cv1, cv2, cv3 = approximatePathCurvatureXY(testPath, offset=offset)
+		print(f"rad:{rad}")
+		print(f"cv1:{cv1}")
+		print(f"cv2:{cv2}")
+		print(f"cv3:{cv3}")
+
+
+		plt.scatter(*testPath)
+		# plt.scatter(*(testPath[:, 1:-1] + cent))
+		for ii in range(rad.shape[0]):
+			plt.plot(*zip(testPath[:, ii], testPath[:, ii] + cv1[:, ii]), color='purple')
+			plt.plot(*zip(testPath[:, ii+offset], testPath[:, ii+offset] + cv2[:, ii]), color='red')
+			plt.plot(*zip(testPath[:, ii+2*offset], testPath[:, ii+2*offset] + cv3[:, ii]), color='orange')
+
+
+			angles = np.linspace(0.0, np.pi*2, 30)
+			centerPoint = testPath[:, ii+offset] + cv2[:, ii]*rad[ii]
+
+			circlePts = np.array([
+				np.cos(angles)*rad[ii] + centerPoint[0],
+				np.sin(angles)*rad[ii] + centerPoint[1],
+			])
+			plt.plot(*circlePts, color='black')
+
+		plt.xlim(-5, 10)
+		plt.ylim(-5, 10)
+		plt.show()
