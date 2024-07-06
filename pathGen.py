@@ -22,27 +22,30 @@ if not os.path.exists(WORKING_DIR):
     # Create the directory
     os.makedirs(WORKING_DIR)
 
+# Check if the directory exists
+if not os.path.exists(WORKING_DIR+"PathDump/"): os.makedirs(WORKING_DIR+"PathDump/")
+
 
 startPoints = 3
 targetHeights = np.zeros(POINT_COUNT, dtype=np.double)
 # Set initial points
-INITIAL_POINT_MULT = 2
-targetHeights[:startPoints] = SIZE_Z - INITIAL_POINT_MULT*PT_DROP*np.arange(startPoints)
-targetHeights[-startPoints:] = INITIAL_POINT_MULT*PT_DROP*(startPoints-1-np.arange(startPoints))
+# Set beginning and end of path to steep decline
+inputOutputSlope = INITIAL_POINT_MULT_SLOPE*(np.arange(startPoints) + 1)
+startAndEndOffset = INITIAL_POINT_MULT_SLOPE*(startPoints + 1)
+targetHeights[:startPoints] = SIZE_Z - inputOutputSlope
+targetHeights[-startPoints:] = np.flip(inputOutputSlope)
 
 # Interpolate rest of points
-targetHeights[startPoints:-startPoints] = (SIZE_Z - INITIAL_POINT_MULT*PT_DROP*2*(startPoints+1))*np.interp(
+targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.interp(
     np.linspace(0.0, 1.0, POINT_COUNT - 2*startPoints),
-    [0.0, 0.9, 1.0],
-    [1.0, 0.06, 0.0]
-) + INITIAL_POINT_MULT*PT_DROP*(startPoints+1)
+    [0.0, 0.85, 1.0],
+    [1.0, 0.1, 0.0]
+) + startAndEndOffset
 
 
 # Init path points
 if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl'):
     pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
-    for idx in range(len(pathList)):
-        pathList[idx] = pathList[idx][:, ::2]
 else:
     # Generate initial path
     pathList = []
@@ -104,7 +107,7 @@ for pathIdx in range(PATH_COUNT):
     angle = getPathAnchorAngle(pathIdx)
     
     # pointRads = np.linspace(SCREW_RAD+PT_SPACING, (LOCKED_PT_CNT+1)*PT_SPACING + SCREW_RAD, LOCKED_PT_CNT)
-    pointRads = np.arange(LOCKED_PT_CNT)*PT_SPACING + (SCREW_RAD + PT_SPACING)
+    pointRads = (np.arange(LOCKED_PT_CNT) + 1)*PT_SPACING + (SCREW_RAD + PT_SPACING)
     setPoints[0, :LOCKED_PT_CNT] = np.cos(angle)*pointRads + SIZE_X/2
     setPoints[1, :LOCKED_PT_CNT] = np.sin(angle)*pointRads + SIZE_Y/2
     setPoints[0, -LOCKED_PT_CNT:] = np.flip(np.cos(angle)*pointRads) + SIZE_X/2
@@ -135,14 +138,16 @@ if REALTIME_PLOTTING_PATHS:
     pathPlottingThread.start()
 
 # Init path temperatures
-pathTempList = np.array([0.0 for idx in range(len(pathList))])
+pathTempList = np.array([-5.0 for idx in range(len(pathList))])
+pathTempHistLen = 150
+pathTempHistList = np.array([1.0e9 * np.ones(pathTempHistLen, dtype=np.double) for idx in range(len(pathList))])
 
 # Iteratively calculate path
 for pathIteration in range(PATH_ITERS):
     pathFrac = pathIteration/PATH_ITERS
 
 
-    if pathTempList.all() == -10.0:
+    if np.sum(pathTempList) == -40.0:
         print(f"Paths converged, exiting early")
         break
 
@@ -178,19 +183,27 @@ for pathIteration in range(PATH_ITERS):
         if DO_DYNAMIC_TEMPERATURE:
             randNoiseFactor = np.clip(pathTempList[pathIdx], 0.0, np.inf)
             moveMult = (10.0 + np.clip(pathTempList[pathIdx], -10.0, 0.0)) / 10.0
-            # moveMult *= 0.5
+
+            scaleFactB = np.interp(pathTempList[pathIdx], [2.0, 10.0, 15.0], [1.0, 0.1, 0.05])
+            scaleFactC = np.interp(pathTempList[pathIdx], [0.0, 3.0, 10.0], [1.0, 0.1, 0.0])
+        else:
+            scaleFactB = 1.0
+            scaleFactC = 1.0
+            # moveMult *= 0.1
 
         # Randomize points a little to add noise to help settle
-        randNoiseArray = np.random.rand(*path.shape)
+        randNoiseArray = np.random.rand(path.shape[0]-1, path.shape[1])
         randNoiseArray = randNoiseFactor * (2*randNoiseArray - 1.0)
-        path += randNoiseArray
+        path[:2] += randNoiseArray
 
         # Init output force list
         # boundingBoxForce, targHeightForce, pathNormForce, noSelfIntersectionForce, pathAngleForce, repelForce, downHillForce, changeInSlopeForce, setPtForce
         forceList = []
 
         # Pull towards bounding box
-        boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, 30.0, 2.0, axCount=3)
+        boundingBoxForceCurve = [[-10, 0, 5, 10], [0.0, 0.1, 5, 40.0]]
+        boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, boundingBoxForceCurve, axCount=3)
+        boundingBoxForce[np.abs(boundingBoxForce) > 0.1] *= scaleFactB
         if APPLY_FORCES_SEPARATELY: path += boundingBoxForce * moveMult
         forceList.append(boundingBoxForce)
 
@@ -198,7 +211,7 @@ for pathIteration in range(PATH_ITERS):
         if not GLASS_MARBLE_14mm:
             targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.15, 5)
         else:
-            targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 1.0, 300)
+            targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 1.0, 15)
         # targHeightForce += pullTowardsTargetSlope(path, -PT_DROP, 0.3, 1.0)
         if APPLY_FORCES_SEPARATELY: path += targHeightForce * moveMult
         forceList.append(targHeightForce)
@@ -209,18 +222,20 @@ for pathIteration in range(PATH_ITERS):
         # pathNormForce = normalizePathDists(pathXY, PT_SPACING, 10.0)
 
         # pathNormForce = normalizePathDists(path,  PT_SPACING, 1.0, maxForce=10.0)
-
-        pathNormForce = normalizePathDists(path,  PT_SPACING, 0.5, maxForce=10.0, dropZ=False)
-        pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.3, maxForce=10.0, pointOffset=2)
-        pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.2, maxForce=10.0, pointOffset=3)
+        pathNormForce = normalizePathDists(path,  PT_SPACING, 0.5, maxForce=5.0, dropZ=False)
+        pathNormForce *= scaleFactB
+        
+        pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.3, maxForce=5.0, pointOffset=2, dropZ=False)
+        pathNormForce += normalizePathDists(path,  PT_SPACING*2, 0.2, maxForce=5.0, pointOffset=3, dropZ=False)
         
         # Apply part of each normalization force to adjacent points
-        adjMix = 0.0
-        kernel_size = 5
-        sigma = 1.0
-        for idx in range(pathNormForce.shape[1]):
-            smoothed_data = weighted_average_convolution(pathNormForce[0], kernel_size, sigma)
-            pathNormForce[0] = (1.0-adjMix)*pathNormForce[0] + adjMix*smoothed_data
+        if False:
+            adjMix = 0.0
+            kernel_size = 5
+            sigma = 1.0
+            for idx in range(pathNormForce.shape[1]):
+                smoothed_data = weighted_average_convolution(pathNormForce[0], kernel_size, sigma)
+                pathNormForce[0] = (1.0-adjMix)*pathNormForce[0] + adjMix*smoothed_data
 
 
         # plt.plot(smoothed_data, label='smoothed_data')
@@ -254,7 +269,11 @@ for pathIteration in range(PATH_ITERS):
 
         # Limit path curvature
         if True:
-            pathAngleForce = tempCurvatureCalc(path)
+            pathAngleForce = scaleFactB*update_path_curvature(path, 25.0, 1e6, 0.3, 1.5, offset=1)
+            pathAngleForce += scaleFactB*update_path_curvature(path, 25.0, 1e6, 0.1, 1.5, offset=2, curvInflectionLimits=(1, 6, 300.0*scaleFactC))
+            pathAngleForce += update_path_curvature(path, 30.0, 150, 0.03, 1.5, offset=3, curvInflectionLimits=(1, 4, 300.0*scaleFactC))
+            pathAngleForce += update_path_curvature(path, 35.0, 100.0, 0.02, 3.0, offset=4)
+
 
         # pathAngleForceTest = correctPathAngle(path, 2.7, 3.14, 0.3, diffPointOffsetCnt=2) # Apply smoothing function across more points
         # pathAngleForce = correctPathAngle(path, 2.6, 3.14, 0.5, diffPointOffsetCnt=3) # Apply smoothing function across more points
@@ -275,7 +294,7 @@ for pathIteration in range(PATH_ITERS):
             # repelForce += repelPoints(path, pathList[cmpIdx], 1.0, ABSOLUTE_MIN_PT_DIST*3) # Required distance between points
 
             repelForce += repelPoints(path, pathList[cmpIdx], 0.001, 20) # Broadly avoid other paths
-            repelForce += repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 20) # Avoid end points of other paths
+            repelForce += repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 60) # Avoid end points of other paths
             
         
         # Repel away from center lift
@@ -285,9 +304,8 @@ for pathIteration in range(PATH_ITERS):
 
         # Do not slope up ever
         downHillForce = preventUphillMotion(path, 1.0)
-        if randNoiseFactor > 15.0:
-            downHillForce = np.zeros_like(downHillForce)
-        if APPLY_FORCES_SEPARATELY: path += downHillForce * moveMult
+        downHillForce *= scaleFactC
+        if APPLY_FORCES_SEPARATELY: path += downHillForce # Always apply at full force
         forceList.append(downHillForce)
 
 
@@ -312,9 +330,8 @@ for pathIteration in range(PATH_ITERS):
         if not GLASS_MARBLE_14mm:
             changeInSlopeForce = correctSlopeChange(path, 0.5, 2.0)
         else:
-            changeInSlopeForce = correctSlopeChange(path, 0.05, 0.5)
-
-        if randNoiseFactor > 12.0: changeInSlopeForce = np.zeros_like(changeInSlopeForce)
+            changeInSlopeForce = correctSlopeChange(path, 0.2, 0.5)
+        changeInSlopeForce *= scaleFactB
         if APPLY_FORCES_SEPARATELY: path += changeInSlopeForce * moveMult # Not sloping up ignores moveMult
         forceList.append(changeInSlopeForce)
 
@@ -326,6 +343,9 @@ for pathIteration in range(PATH_ITERS):
         setPtForce[:, setPointIndices] = setPoints[3] * (setPoints[:3] - path[:, setPointIndices])
         if APPLY_FORCES_SEPARATELY: path += setPtForce * moveMult
         forceList.append(setPtForce)
+
+        forcePointIndices = np.where(setPoints[3] == 1.0)[0]
+        path[:, setPointIndices[forcePointIndices]] = setPoints[:3, forcePointIndices]
 
         if False:
             ax = plt.figure().add_subplot(projection='3d')
@@ -375,6 +395,8 @@ for pathIteration in range(PATH_ITERS):
 
         # Update dynamic temperature
         if DO_DYNAMIC_TEMPERATURE:
+            indicatorChar = '~'
+
             forceSums = np.sum(forceMags[:-1], axis=0) # Sum forces excluding setpointforce
             maxForceIdx = np.argmax(forceSums)
             if False and pathIdx == 0:
@@ -389,12 +411,29 @@ for pathIteration in range(PATH_ITERS):
             temperatureDrop = np.interp(pathTempList[pathIdx], PATH_RANDOMIZATION_FUNC[1], PATH_RANDOMIZATION_FUNC[2])
             pathTempList[pathIdx] -= temperatureDrop
             
-            # Update if appropriate
+            # Update temperature if exceeds current
             if temperatureVal > pathTempList[pathIdx]:
-                pathTempList[pathIdx] = temperatureVal
+                if temperatureVal - pathTempList[pathIdx] > 1.0:
+                    pathTempList[pathIdx] += 1
+                    indicatorChar = '+'
+                else:
+                    pathTempList[pathIdx] = temperatureVal
+                    indicatorChar = '^'
+
+
+            # Reset if failed to decrease
+            temperatureIdx = pathIteration%pathTempHistLen
+            prevTemperature = pathTempHistList[pathIdx][temperatureIdx]
+            if maxSumForce > np.max(pathTempHistList[pathIdx]):
+                indicatorChar = '#'
+                pathTempList[pathIdx] += 10.0
+                pathTempHistList[pathIdx] += 10.0
+
+            pathTempHistList[pathIdx][temperatureIdx] = maxSumForce
 
             # Print data
-            print(f"{maxSumForce:>8.5f} {pathTempList[pathIdx]:>8.5f}", end=' | ')
+            # print(f"{indicatorChar} {maxSumForce:>8.5f} {pathTempList[pathIdx]:>8.5f} {scaleFactB:>1.1f} {scaleFactC:>1.1f}", end=' | ')
+            print(f"{indicatorChar} {maxSumForce:>8.5f} {pathTempList[pathIdx]:>8.5f}", end=' | ')
                 
         # Resample path if requested
         if pathIteration in RESAMPLE_AT:
@@ -454,17 +493,18 @@ for pathIteration in range(PATH_ITERS):
 
 
 
-    if pathIteration%5 == 0:
+    if pathIteration%2 == 0:
         # Use spline interpolation for additonal points
-        fullPaths = [subdividePath(path) for path in pathList]
+        # fullPaths = [subdividePath(path) for path in pathList]
         # fullPaths = [path for path in pathList]
 
-        pkl.dump(fullPaths, open(WORKING_DIR+'path.pkl', 'wb'))
+        pkl.dump(pathList, open(WORKING_DIR+'path.pkl', 'wb'))
+        pkl.dump(pathList, open(WORKING_DIR+f"PathDump/1{str(pathIteration).rjust(4, '0')}.pkl", 'wb'))
 
 
 
 
-pkl.dump(fullPaths, open(WORKING_DIR+'path.pkl', 'wb'))
+pkl.dump(pathList, open(WORKING_DIR+'path.pkl', 'wb'))
 
 # Generate supports
     # Normalize distances

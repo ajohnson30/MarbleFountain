@@ -33,7 +33,7 @@ outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
 pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
 if GLASS_MARBLE_14mm:
 	pathList = [subdividePath(path) for path in pathList]
-rotList = [calculatePathRotations(path) for path in pathList]
+rotList = [calculatePathRotations(pathList[pathIdx], getPathAnchorAngle(pathIdx)) for pathIdx in range(len(pathList))]
 
 outputAssembly = sphere(0)
 

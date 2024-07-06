@@ -42,19 +42,24 @@ def getPathAnchorAngle(pathIdx):
 	return angle
 
 # Pull towards bounding box
-def pushTowardsBoundingBox(pts, box, forcePerDist, maxForcePerAxis, axCount = 2):
+def pushTowardsBoundingBox(pts, box, forceCurve, axCount = 2):
 	outForces = np.zeros_like(pts)
 	zeros = np.zeros_like(pts[0])
 	
 	boxSet = np.tile(box, (pts.shape[1], 1)).T
-	outForces[np.where(pts > boxSet)] -= (pts - boxSet)[np.where(pts > boxSet)]
-	outForces[np.where(pts < 0.0)] -= pts[np.where(pts < 0.0)]
+	negForces = np.interp(pts-boxSet, *forceCurve)
+	posForces = np.interp(-pts, *forceCurve)
+	outForces = np.where(posForces > negForces, posForces, -negForces)
+
+	# Old method (pre interpolation)
+	# outForces[np.where(pts > boxSet)] -= (pts - boxSet)[np.where(pts > boxSet)]
+	# outForces[np.where(pts < 0.0)] -= pts[np.where(pts < 0.0)]
 	# for ax in range(axCount):
 	# 	outForces[ax] -= np.min([pts[ax], zeros])
 	# 	outForces[ax] += np.min([box[ax] - pts[ax], zeros])
+	# outForces *= forcePerDist
+	# outForces = np.clip(outForces, -maxForcePerAxis, maxForcePerAxis)
 
-	outForces *= forcePerDist
-	outForces = np.clip(outForces, -maxForcePerAxis, maxForcePerAxis)
 	return(outForces)
 
 # Pull towards Z position
@@ -277,11 +282,13 @@ def approximatePathCurvatureXY(path, offset=1, includeCurvatureDir=False):
 	# Calculate radii
 	numerator = np.linalg.norm(v1, axis=0) * np.linalg.norm(v2, axis=0) * np.linalg.norm(v3, axis=0)
 	denominator = 2 * np.abs(cross)
+	denominator = np.where(denominator !=0, denominator, 1.0)
 	radii = np.where(denominator != 0, numerator / denominator, np.inf) # Handle zero case
 
 	# Calculate vector to circle center
 	normCenterVect = -v1/np.linalg.norm(v1, axis=0) + v3/np.linalg.norm(v3, axis=0)
-	normCenterVect /= np.linalg.norm(normCenterVect, axis=0)
+	normCenterVectNormal = np.linalg.norm(normCenterVect, axis=0)
+	normCenterVect /= np.where(normCenterVectNormal != 0.0, normCenterVectNormal, 1e-9)
 
 	# Calculate vectors to circle centers
 	centerVect = radii*normCenterVect
@@ -346,7 +353,7 @@ def update_path_curvature(path, min_radius, max_radius, updateMag=1.0, maxMag=5.
 		min_radius = np.interp(
 			distance_to_sign_change(curvatureSign),
 			[curvInflectionLimits[0], curvInflectionLimits[1]],
-			[curvInflectionLimits[2], min_radius]
+			[curvInflectionLimits[2] + min_radius, min_radius]
 		)
 
 
@@ -366,22 +373,6 @@ def update_path_curvature(path, min_radius, max_radius, updateMag=1.0, maxMag=5.
 	
 	return updates
 
-# Calculate curvature force in one pass for both pathgen and plotting
-def tempCurvatureCalc(path):
-	pathAngleForce = update_path_curvature(path, 15.0, 1e6, 0.2, 1.0, offset=1)
-	pathAngleForce += update_path_curvature(path, 20.0, 1e6, 0.04, 0.5, offset=2, curvInflectionLimits=(1, 4, 300.0))
-	pathAngleForce += update_path_curvature(path, 20.0, 80, 0.03, 1.5, offset=3, curvInflectionLimits=(1, 4, 300.0))
-	pathAngleForce += update_path_curvature(path, 25.0, 100.0, 0.02, 3.0, offset=4)
-
-	# for axis in range(3): pathAngleForce[axis] = smooth_array(pathAngleForce[axis], 2)
-
-	# outputForce = np.zeros_like(pathAngleForce)
-	# outputForce = deepcopy(pathAngleForce)
-	# outputForce[:, 1:] = pathAngleForce[:, :-1]
-	# outputForce[:, :-1] = pathAngleForce[:, 1:]
-
-	return(pathAngleForce)
-
 # Smooth out change in slope
 def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
 	outForces = np.zeros_like(path)
@@ -392,7 +383,8 @@ def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
 
 	correctSlope = (PT_DROP / PT_SPACING)
 	
-	slopeErr = correctSlope - slope
+	slopeErr = correctSlope/slope
+	slopeErr = np.where(slopeErr < 1.0, -slope/correctSlope, slopeErr)
 	outForces[2, 1:] -= slopeErr*slopeErrMag/2
 	outForces[2, :-1] += slopeErr*slopeErrMag/2
 
@@ -537,7 +529,7 @@ def smoothByNextN(inputArr, N):
 	inputArr[:-(N-1)] = convArr
 	return(inputArr)
 
-def calculatePathRotations(path, diffPointOffsetCnt=2):
+def calculatePathRotations(path, screwJoinAngle=None):
 	# Calculate angles
 	baseAngles = np.arctan2(path[1, 2:] - path[1, :-2], path[0, 2:] - path[0, :-2])
 	angles = np.arctan2(np.diff(path[1]), np.diff(path[0]))
@@ -576,7 +568,7 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	tilt[-LOCKED_PT_CNT:] = 0.0
 
 	# Zero tilt of back and forth motion
-	if False:
+	if True:
 		reversePointDist = 1
 		positiveTurnPoints = np.zeros_like(changeInAngle, dtype=np.int16)
 		positiveTurnPoints[changeInAngle > 0.0] = 1
@@ -591,7 +583,8 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	tilt = smoothByNextN(deepcopy(tilt), 5)*slopeConv*3
 	
 	# Limit max rotation a little to prevent hard turns from blowing out resolution
-	tilt = np.clip(tilt, -TRACK_MAX_TILT*2, TRACK_MAX_TILT*2)
+	PRE_SMOOTH_MAX_TILT = TRACK_MAX_TILT*1.2
+	tilt = np.clip(tilt, -PRE_SMOOTH_MAX_TILT, PRE_SMOOTH_MAX_TILT)
 
 	# Smooth tilts
 	SMOOTH_CNT = 1
@@ -635,7 +628,21 @@ def calculatePathRotations(path, diffPointOffsetCnt=2):
 	rotations[0, -1] = angles[-1]
 	rotations[1, 1:-1] = currTilts
 
-	# Set initial track to be flat
+	# # Set initial track to be flat
+	# if screwJoinAngle != None:
+	# 	forceRotMag = np.linspace(0.0, 1.0, LOCKED_PT_CNT)
+	# 	# forceRotMag = np.interp(np.linspace(0.1, 1.0, LOCKED_PT_CNT), [0.0, 0.7], [0.0, 1.0])
+
+	# 	rotations[0, :int(LOCKED_PT_CNT)] = -forceRotMag
+	# 	rotations[1, :LOCKED_PT_CNT] = screwJoinAngle*rotations[1, :LOCKED_PT_CNT]
+
+	# 	forceRotMag = np.flip(forceRotMag)
+
+	# 	rotations[0, -int(LOCKED_PT_CNT):] = -forceRotMag
+	# 	rotations[1, -LOCKED_PT_CNT:] = screwJoinAngle*rotations[1, -LOCKED_PT_CNT:]
+
+
+
 	# rotations[1, :LOCKED_PT_CNT*2] = 0.0
 	
 	
@@ -748,8 +755,11 @@ def plot_paths_real_time(data_queue):
 	plt.ion()  # Turn on interactive mode
 
 	while True:
+		pathList = None
 		while not data_queue.empty():
 			pathList = data_queue.get()
+		
+		if pathList:
 			plotPath(ax, pathList)
 		plt.draw()
 		plt.pause(1.0)  # Pause to update the plot
@@ -758,7 +768,7 @@ def plotPath(ax, pathList):
 	ax.clear()
 	
 	for pathIdx in range(len(pathList)):
-		path = pathList[pathIdx][:, ::2]
+		path = pathList[pathIdx]
 		bridgePoints = pathList[pathIdx]
 
 
@@ -798,7 +808,7 @@ def plotPath(ax, pathList):
 
 
 			
-		if True:
+		if False:
 			offset = 1
 			forceSet = tempCurvatureCalc(path)
 
@@ -872,7 +882,7 @@ if __name__ == '__main__':
 
 
 	# Test path curvature
-	if True:
+	if False:
 		testPath = np.array([
 			[0, 1, 2, 3, 4, 4.5],
 			[1, 0, 1, 0, 0, -0.75]

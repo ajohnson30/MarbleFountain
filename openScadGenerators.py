@@ -249,7 +249,7 @@ def generateScrewPathJoins(angle):
 	# First point matches tracks
 	railPath[0, 0] = PT_SPACING*2
 	railPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
-	railPath[2, 0] = -netRad*np.sin(TRACK_CONTACT_ANGLE)
+	railPath[2, 0] = -netRad*np.sin(TRACK_CONTACT_ANGLE) + INITIAL_POINT_MULT_SLOPE
 
 	entryRad = netRad+TRACK_RAD/4
 
@@ -282,7 +282,7 @@ def generateScrewPathJoins(angle):
 
 	legPath[2, 1] = BASE_OF_MODEL
 	legPath[:, 2] = railPath[:, 0]
-	legPath[2, 2] -= TRACK_RAD
+	legPath[2, 2] -= TRACK_RAD*2
 
 
 	# Save, mirror, save
@@ -300,13 +300,13 @@ def generateScrewPathJoins(angle):
 	# First point matches tracks
 	topRailPath[0, 0] = PT_SPACING*2
 	topRailPath[1, 0] = netRad*np.cos(TRACK_CONTACT_ANGLE)
-	topRailPath[2, 0] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
+	topRailPath[2, 0] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE) - INITIAL_POINT_MULT_SLOPE
 	
 	# Circular feature at top
 	angleSet = np.linspace(-np.arccos(vertRailSideOffset/entryRad), np.pi/2, UPPER_PT_CNT)
 	topRailPath[1, 1:UPPER_PT_CNT+1] = entryRad*np.cos(angleSet)
 	topRailPath[2, 1:UPPER_PT_CNT+1] = entryRad*np.sin(angleSet)
-	topRailPath[2, 1:UPPER_PT_CNT+1] += 1.5*entryRad*np.interp(
+	topRailPath[2, 1:UPPER_PT_CNT+1] += 1.2*entryRad*np.interp(
 		np.linspace(0.0, 1.0, UPPER_PT_CNT),
 		[0.0, 0.1, 0.4, 1.0],
 		[0.0, 0.0, 0.9, 1.0]
@@ -323,7 +323,7 @@ def generateScrewPathJoins(angle):
 	legPath = np.zeros((3, 3))
 	legPath[:, 0] = topRailPath[:, 1]
 	legPath[:, 1] = topRailPath[:, 0]
-	legPath[2, 1] -= TRACK_RAD
+	legPath[2, 1] -= TRACK_SUPPORT_RAD*2
 	legPath[:, 2] = topRailPath[:, 1]
 	legPath[2, 2] -= MARBLE_RAD*2
 
@@ -587,7 +587,7 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 		from PIL import Image, ImageDraw
 		os.makedirs(visPath, exist_ok=True)
 		imScale = 5
-		plotImage = Image.new('RGB', (SIZE_X*imScale, SIZE_Y*imScale))
+		plotImage = Image.new('RGB', (int(SIZE_X*imScale), int(SIZE_Y*imScale)))
 		plotDraw = ImageDraw.Draw(plotImage)
 
 	# Iterate over every layer height
@@ -617,8 +617,10 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 
 			# Calculate how important this motion is, prioritizing not hitting paths
 			magnitudeOfPriority = magnitude(boundaryForce) + magnitude(repulsiveForce)
-			motionPriorityRatio =  magnitudeOfPriority / (magnitudeOfPriority + magnitude(attractiveForce) + magnitude(centerForce))
-
+			if magnitudeOfPriority != 0.0:
+				motionPriorityRatio =  magnitudeOfPriority / (magnitudeOfPriority + magnitude(attractiveForce) + magnitude(centerForce))
+			else:
+				motionPriorityRatio = 0.0
 			# Calculate acceleration based purely on force and size
 			fooCol.sumAcc = attractiveForce + boundaryForce + repulsiveForce + centerForce
 			fooCol.sumAcc /= np.sqrt(np.clip(fooCol.size, 2, 10))
