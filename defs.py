@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print14/'
+WORKING_DIR = 'proc/Print15/'
 
 if len(sys.argv) > 1:
     WORKING_DIR = sys.argv[1]
@@ -22,7 +22,7 @@ PT_DROP = 0.9    # target z drop per pt
 INITIAL_POINT_MULT_SLOPE = 2*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 
-PATH_COUNT = 5 # Numer of paths to generate
+PATH_COUNT = 4 # Numer of paths to generate
 
 # Path gen optimization
 PATH_ITERS = 2000 # Number of iterations to optimize too
@@ -38,17 +38,18 @@ RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
 #   A negative temp indicates magnitude of force updates, with -10 being 0
 #   Pairs are (max force mag, noise setting, temp decay)
 DO_DYNAMIC_TEMPERATURE = True
+TEMPERATURE_HISTORY_LEN = 150
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
     [10.0, -10.0, 0.05],
-    [15.0, 0.0, 0.05],
-    [15.1, 1.0, 0.05],
-    [20.0, 3.0, 0.05],
-    [25.0, 10.0, 0.1],
+    [14.0, 0.0, 0.05],
+    [20.0, 1.0, 0.1],
+    [25.0, 2.0, 0.1],
+    [40.0, 15.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20
 ], 0, 1)
 
-PATH_RANDOMIZATION_FUNC[0] *= 1.6
-PATH_RANDOMIZATION_FUNC[0, 0] = 14
+# PATH_RANDOMIZATION_FUNC[0] *= 1.6
+# PATH_RANDOMIZATION_FUNC[0, 0] = 14
 
 LOCKED_PT_CNT = 5 # Points locked in a straight line as part of the initial path
 
@@ -70,7 +71,7 @@ SMOOTH_TILT_CNT_A = 2 # How many points to smooth each rotation points' tilt by
 SMOOTH_TILT_CNT_B = 3 # And then we do it again
 
 # Support generation constants
-TRACK_SUPPORT_RAD = 1.2 # Initial radius of track support
+TRACK_SUPPORT_RAD = 1.0 # Initial radius of track support
 TRACK_SUPPORT_MAX_RAD = 2.2 # Maximum support radius
 SUPPORT_LAYER_HEIGHT = 0.25 # Layer height
 MAX_PARTICLE_VEL = SUPPORT_LAYER_HEIGHT*2.0 # Maximum XY motion between each layer
@@ -93,10 +94,9 @@ POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 PULL_TO_CENTER_MAG = 0.05 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-REALTIME_PLOTTING_FORCEMAGS = True
-REALTIME_PLOTTING_PATHS = False
-SUPPORT_VIS = True # Output support gen visualization
-GENERATE_SUPPORTS = True
+REALTIME_PLOTTING_FORCEMAGS = False
+SUPPORT_VIS = False # Output support gen visualization
+GENERATE_SUPPORTS = False
 LOAD_EXISTING_PATH = True
 
 UNIVERSAL_FN = 10 # How many sides for each triangle

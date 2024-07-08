@@ -104,12 +104,19 @@ def normalizePathDists(path, targDist, forcePerDist, maxForce = 5.0, pointOffset
 
 	forceMags = (targDist - pathDists) * forcePerDist / 2
 
-	forceMags = np.clip(forceMags, -maxForce, maxForce)
 	# forceMags = np.max([forceMags, np.zeros_like(forceMags)-10], axis=0)
 
 	outForces = np.zeros_like(path)
 	outForces[:axisCap, :-pointOffset] -= forceMags * pathNorms
 	outForces[:axisCap, pointOffset:] += forceMags * pathNorms
+
+	# # Make force magnitudes constant
+	# netForceMags = np.zeros(path.shape[1])
+	# netForceMags[:-pointOffset] += np.abs(forceMags)
+	# netForceMags[pointOffset:] += np.abs(forceMags)
+	# netForceMags = np.clip(netForceMags, -maxForce, maxForce)
+	
+	# outForces = netForceMags * outForces/np.linalg.norm(outForces)
 
 	# print(forceMags)
 	return outForces
@@ -338,26 +345,26 @@ def distance_to_sign_change(arr):
 
 # Correct path curvature by calculating radius of tangent cirle
 # This is more resiliant to changes in point spacing
-def update_path_curvature(path, min_radius, max_radius, updateMag=1.0, maxMag=5.0, offset=1, curvInflectionLimits = None):
+def update_path_curvature(path, min_radius, max_radius, updateMag=1.0, maxMag=5.0, offset=1):
 	N = path.shape[1]
 
 	if N <= 2 * offset:
 		return updates
 
 	# Get normal vectors to center points of curvature
-	radii, centerVectPrev, normCenterVect, centerVectNext, curvatureSign = approximatePathCurvatureXY(path, offset=offset, includeCurvatureDir=True)
+	radii, centerVectPrev, normCenterVect, centerVectNext = approximatePathCurvatureXY(path, offset=offset)
 
+	if type(min_radius) == np.ndarray:
+		min_radius = min_radius[offset:-offset]
+	if type(max_radius) == np.ndarray:
+		max_radius = max_radius[offset:-offset]
 
-
-	if curvInflectionLimits != None:
-		min_radius = np.interp(
-			distance_to_sign_change(curvatureSign),
-			[curvInflectionLimits[0], curvInflectionLimits[1]],
-			[curvInflectionLimits[2] + min_radius, min_radius]
-		)
-
-
-
+	# if curvInflectionLimits != None:
+	# 	min_radius = np.interp(
+	# 		distance_to_sign_change(curvatureSign),
+	# 		[curvInflectionLimits[0], curvInflectionLimits[1]],
+	# 		[curvInflectionLimits[2] + min_radius, min_radius]
+	# 	)
 	# Calculate magnitude of force correction
 	forceMags = np.zeros_like(radii)
 	forceMags = np.max([min_radius-radii, forceMags], axis=0)
@@ -373,22 +380,30 @@ def update_path_curvature(path, min_radius, max_radius, updateMag=1.0, maxMag=5.
 	
 	return updates
 
+# Calculate slope of path (rise / run)
+def calcPathSlope(path):
+	zDiffs = np.diff(path[2])
+	xyDist = magnitude(np.diff(path[:2], axis=1))
+	return zDiffs/xyDist
+
 # Smooth out change in slope
 def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
 	outForces = np.zeros_like(path)
 
-	zDiffs = np.diff(path[2])
-	xyDist = magnitude(np.diff(path[:2], axis=1))
-	slope = zDiffs/xyDist
+	slope = calcPathSlope(path)
+	averageSlope = np.average(slope)
 
-	correctSlope = (PT_DROP / PT_SPACING)
-	
-	slopeErr = correctSlope/slope
-	slopeErr = np.where(slopeErr < 1.0, -slope/correctSlope, slopeErr)
+	# plt.plot(averageSlope*np.ones_like(slope))
+	# plt.plot(slope)
+	# plt.plot(np.diff(slope))
+	# plt.show()
+
+	slopeErr = (slope - averageSlope)/averageSlope
+	slopeErr = np.where(slopeErr < 0, slopeErr*2, slopeErr) # Double magnitude of overly flat slope
 	outForces[2, 1:] -= slopeErr*slopeErrMag/2
 	outForces[2, :-1] += slopeErr*slopeErrMag/2
 
-	maxSlopeDelta = correctSlope
+	maxSlopeDelta = averageSlope
 	maxSlopeDeltaCap = maxSlopeDelta*2
 	slopeDiff = np.diff(slope)
 	
@@ -401,7 +416,7 @@ def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
 
 	return(outForces)
 
-def preventUphillMotion(path, forceMag = 0.1):
+def preventUphillMotion(path, forceMag = 0.1, minSlope = 0.1):
 	slopeDownForce = np.zeros_like(path)
 	zVal = path[2]
 	zDiff = np.diff(zVal)
@@ -714,6 +729,9 @@ def weighted_average_convolution(data, kernel_size=5, sigma=1.0):
 	
 	return result
 
+def addToPathAndSums(force, path, forceSum, moveMultMag):
+	path += force*moveMultMag
+	forceSum += force
 
 import threading
 import matplotlib.pyplot as plt
