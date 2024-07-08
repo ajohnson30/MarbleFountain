@@ -156,12 +156,16 @@ for pathIteration in range(PATH_ITERS):
         # boundingBoxForce, targHeightForce, pathNormForce, noSelfIntersectionForce, pathAngleForce, repelForce, changeInSlopeForce, downHillForce, setPtForce
         forceList = []
 
+
+
         # Pull towards bounding box
         boundingBoxForceCurve = [[-10, 0, 5, 10], [0.0, 0.1, 5, 40.0]]
         boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, boundingBoxForceCurve, axCount=3)
         boundingBoxForce[np.abs(boundingBoxForce) > 0.1] *= scaleFactB
         path += boundingBoxForce * moveMult
         forceList.append(boundingBoxForce)
+
+
 
         # Pull towards Z position
         targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.4*scaleFactA+0.05, 15)
@@ -175,13 +179,9 @@ for pathIteration in range(PATH_ITERS):
         path += targHeightForce*moveMult
         forceList.append(targHeightForce)
 
-        # plt.cla
-        # plt.plot(targHeightForce[2], label='targHeightForce')
-        # plt.plot(maxTargHeightForce[2], label='maxTargHeightForce')
-        # plt.plot(finalTargHeightForce[2], label='finalTargHeightForce')
-        # plt.legend()
-        # plt.show()
 
+
+        # Normalize differences between path norms
         pathNormSumForce = np.zeros_like(path)
         addToPathAndSums(scaleFactB*normalizePathDists(path,  PT_SPACING, 0.5, maxForce=5.0, dropZ=False), path, pathNormSumForce, moveMult)
         addToPathAndSums(normalizePathDists(path,  PT_SPACING*2, 0.3, maxForce=5.0, pointOffset=2, dropZ=False), path, pathNormSumForce, moveMult)
@@ -199,6 +199,8 @@ for pathIteration in range(PATH_ITERS):
         addToPathAndSums(noSelfIntersectionForce_req, path, noSelfIntersectionForce, moveMult)
         forceList.append(noSelfIntersectionForce)
 
+
+
         # Limit path angle
         if False:
             if not GLASS_MARBLE_14mm:
@@ -211,6 +213,8 @@ for pathIteration in range(PATH_ITERS):
                 pathAngleForce = correctPathAngle(path, 2.9, 3.14, 1.5)
                 # pathAngleForce += correctPathAngle(path, 3.1, 3.14, 0.1)
                 pathAngleForce += correctPathAngle(path, 2.6, 3.14, 3.0, diffPointOffsetCnt=2)
+
+
 
         # Limit path curvature
         # Calculate turnaround points to adjust curvature
@@ -227,23 +231,20 @@ for pathIteration in range(PATH_ITERS):
         curvAdjustMag = np.max([curvatureFlipMag, slopeSharpnessMag*0.4], axis=0)
 
         curvAdjustMag *= scaleFactC
-        # plt.plot(curvatureFlipMag)
-        # plt.plot(slopeSharpnessMag)
-        # plt.plot(curvAdjustMag)
-        # plt.show()
+        
         pathAngleForceSum = np.zeros_like(path)
         addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 50.0+100*curvAdjustMag, 0.05, 1.5, offset=2), path, pathAngleForceSum, moveMult)
         addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 50.0+100*curvAdjustMag, 0.05, 1.5, offset=3), path, pathAngleForceSum, moveMult)
         addToPathAndSums(scaleFactA*update_path_curvature(path, 30.0, 1e6, 0.02, 3.0, offset=4), path, pathAngleForceSum, moveMult)
 
-
         basePathAngleForce = scaleFactB*update_path_curvature(path, 25.0, 1e6, 0.2, 1.5, offset=1)
         basePathAngleForce[:, :LOCKED_PT_CNT] *= 2.0
         basePathAngleForce[:, -LOCKED_PT_CNT:] *= 2.0
         addToPathAndSums(basePathAngleForce, path, pathAngleForceSum, moveMult)
-        
-        # if APPLY_FORCES_SEPARATELY: path += pathAngleForce * moveMult
+
         forceList.append(pathAngleForceSum)
+
+
 
         # Repel away from other paths
         repelForce = np.zeros_like(path)
@@ -269,15 +270,21 @@ for pathIteration in range(PATH_ITERS):
         )
         forceList.append(repelForce)
 
+
+
         # Correct irregular slopes
         changeInSlopeForce = correctSlopeChange(path, 0.1*scaleFactB, 0.5*scaleFactB)
         path += changeInSlopeForce * moveMult # Not sloping up ignores moveMult
         forceList.append(changeInSlopeForce)
 
+
+
         # Do not slope up ever
         downHillForce = scaleFactB*preventUphillMotion(path, 1.0)
         path += downHillForce # Always apply at full force
         forceList.append(downHillForce)
+
+
 
         # Pull towards set points
         setPtForce = np.zeros_like(path)
@@ -289,6 +296,10 @@ for pathIteration in range(PATH_ITERS):
 
         forcePointIndices = np.where(setPoints[3] == 1.0)[0]
         path[:, setPointIndices[forcePointIndices]] = setPoints[:3, forcePointIndices]
+
+
+
+        # End of path updates
 
         # Calculate force data
         forceMags = [magnitude(fooFrc) for fooFrc in forceList]
