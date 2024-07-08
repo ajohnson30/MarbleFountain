@@ -25,8 +25,8 @@ os.makedirs(WORKING_DIR+'test/', exist_ok=True)
 outputAssembly = generateCenterScrewRotatingPart()
 outputAssembly.save_as_scad(WORKING_DIR + "Screw.scad")
 
-outputAssembly = cylinder(90, 5, 2)
-outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
+# outputAssembly = cylinder(90, 5, 2)
+# outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
 
 
 # Load path data

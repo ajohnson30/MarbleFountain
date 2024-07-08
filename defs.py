@@ -18,9 +18,10 @@ BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 4 # distance from one point to the next
 
-PT_DROP = 0.9    # target z drop per pt
-INITIAL_POINT_MULT_SLOPE = 2*PT_DROP
+PT_DROP = 0.75    # target z drop per pt
+INITIAL_POINT_MULT_SLOPE = 1.5*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
+if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
 PATH_COUNT = 4 # Numer of paths to generate
 
@@ -38,12 +39,13 @@ RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
 #   A negative temp indicates magnitude of force updates, with -10 being 0
 #   Pairs are (max force mag, noise setting, temp decay)
 DO_DYNAMIC_TEMPERATURE = True
-TEMPERATURE_HISTORY_LEN = 150
+TEMPERATURE_HISTORY_LEN = 200
+TEMPERATURE_FAILURE_BOOST = 10.0
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
-    [10.0, -10.0, 0.05],
-    [14.0, 0.0, 0.05],
-    [20.0, 1.0, 0.1],
-    [25.0, 2.0, 0.1],
+    [10.0, -10.0, 0.1],
+    [13.0, 0.0, 0.08],
+    [13.1, 1.0, 0.1],
+    [17.0, 2.0, 0.1],
     [40.0, 15.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20
 ], 0, 1)
@@ -66,7 +68,7 @@ if GLASS_MARBLE_14mm:
     PATH_RANDOMIZATION_FUNC[1, 1:] /= 2
 
 TRACK_CONTACT_ANGLE = np.pi/5 # Angle between path and contact points
-TRACK_MAX_TILT = np.pi/4 # Max angle of tilt for track
+TRACK_MAX_TILT = np.pi/5 # Max angle of tilt for track
 SMOOTH_TILT_CNT_A = 2 # How many points to smooth each rotation points' tilt by
 SMOOTH_TILT_CNT_B = 3 # And then we do it again
 
@@ -94,9 +96,9 @@ POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 PULL_TO_CENTER_MAG = 0.05 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-REALTIME_PLOTTING_FORCEMAGS = False
+REALTIME_PLOTTING_FORCEMAGS = True
 SUPPORT_VIS = False # Output support gen visualization
-GENERATE_SUPPORTS = False
+GENERATE_SUPPORTS = True
 LOAD_EXISTING_PATH = True
 
 UNIVERSAL_FN = 10 # How many sides for each triangle
@@ -108,7 +110,7 @@ SCREW_PITCH = 16 # mm per rev
 SCREW_RESOLUTION = 30 # pts per rev
 SCREW_SUPPORT_GROUPING = (4, 9)
 SCREW_OUTER_TRACK_DIST = 0.5 # How far out to place the bottom rail
-SCREW_TOP_PUSH_PTS = 10 # How many points at the top of the screw to push towards the outside
+SCREW_TOP_PUSH_PTS = 15 # How many points at the top of the screw to push towards the outside
 
 
 if GLASS_MARBLE_14mm:

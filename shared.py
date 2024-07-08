@@ -387,10 +387,13 @@ def calcPathSlope(path):
 	return zDiffs/xyDist
 
 # Smooth out change in slope
-def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
+def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2, upwardsForceMag = None, offset=1):
 	outForces = np.zeros_like(path)
 
-	slope = calcPathSlope(path)
+	zDiffs = path[2, offset*2:] - path[2, :-offset*2]
+	xyDist = magnitude(path[:2, offset*2:] - path[:2, :-offset*2])
+	slope = zDiffs/xyDist
+
 	averageSlope = np.average(slope)
 
 	# plt.plot(averageSlope*np.ones_like(slope))
@@ -398,21 +401,31 @@ def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2):
 	# plt.plot(np.diff(slope))
 	# plt.show()
 
-	slopeErr = (slope - averageSlope)/averageSlope
-	slopeErr = np.where(slopeErr < 0, slopeErr*2, slopeErr) # Double magnitude of overly flat slope
-	outForces[2, 1:] -= slopeErr*slopeErrMag/2
-	outForces[2, :-1] += slopeErr*slopeErrMag/2
+	if forceMag > 0.0 or upwardsForceMag:
+		if upwardsForceMag == None:
+			upwardsForceMag = forceMag
+		
+		slopeErr = (slope - averageSlope)/averageSlope
+		# slopeErr = np.where(slopeErr < 0, slopeErr*2, slopeErr) # Double magnitude of overly flat slope
 
-	maxSlopeDelta = averageSlope
-	maxSlopeDeltaCap = maxSlopeDelta*2
-	slopeDiff = np.diff(slope)
-	
-	slopeDiffErrMag = np.interp(
-		slopeDiff,
-		[-maxSlopeDeltaCap, -maxSlopeDelta, maxSlopeDelta, maxSlopeDeltaCap],
-		[-1.0, 0.0, 0.0, 1.0]
-	)
-	outForces[2, 1:-1] = slopeDiffErrMag * forceMag
+		slopeForce = np.where(slopeErr < 0, slopeErr*upwardsForceMag, slopeErr*forceMag)
+
+		outForces[2, offset*2:] -= slopeErr*slopeErrMag/2
+		outForces[2, :-offset*2] += slopeErr*slopeErrMag/2
+
+
+	if slopeErrMag > 0.0:
+		maxSlopeDelta = averageSlope
+		maxSlopeDeltaCap = maxSlopeDelta*2
+		slopeDiff = slope[2:] - slope[:-2]
+		
+		slopeDiffErrMag = np.interp(
+			slopeDiff,
+			[-maxSlopeDeltaCap, -maxSlopeDelta, maxSlopeDelta, maxSlopeDeltaCap],
+			[-slopeErrMag, 0.0, 0.0, slopeErrMag]
+		)
+		outForces[2, offset+1:-offset-1] = slopeDiffErrMag
+		# outForces[2, offset:-offset] = slopeDiffErrMag
 
 	return(outForces)
 
@@ -425,8 +438,8 @@ def preventUphillMotion(path, forceMag = 0.1, minSlope = 0.1):
 	zTargetMax = deepcopy(zVal)
 	zTargetMin = deepcopy(zVal)
 	for idx in range(len(zVal)):
-		zTargetMax[idx] = np.max(zVal[idx:])
-		zTargetMin[idx] = np.min(zVal[:idx+1])
+		zTargetMax[idx] = np.max(zVal[idx:]) + minSlope
+		zTargetMin[idx] = np.min(zVal[:idx+1]) - minSlope
 	zTargMaxRatio = np.linspace(0.0, 1.0, len(zVal))
 	zTarget = zTargMaxRatio*zTargetMax + (1.0-zTargMaxRatio)*zTargetMin
 	# zTarget = (zTargetMax+zTargetMin) / 2.0
@@ -562,28 +575,37 @@ def calculatePathRotations(path, screwJoinAngle=None):
 	pointSlopes -= np.min(pointSlopes)
 	slopeMagAtPoint = pointSlopes / np.average(pointSlopes)
 	slopeMagAtPoint += 0.5
-	slopeMagAtPoint[slopeMagAtPoint < 1.0] = 1.0
+	# slopeMagAtPoint[slopeMagAtPoint < 1.0] = 1.0
 
 
 	# Set minimum slope factor decay point to point
-	maxSlope = 0.96
+	slopeMagAtPoint = np.where(slopeMagAtPoint > 2.5, 2.5, slopeMagAtPoint)
+	# maxSlope = 0.96
+	maxSlopeDecay = 0.05
 	slopeConv = deepcopy(slopeMagAtPoint)
 	for idx in range(1, slopeConv.shape[0]):
-		if slopeConv[idx] < slopeConv[idx-1]*maxSlope:
-			slopeConv[idx] = slopeConv[idx-1]*maxSlope
+		if slopeConv[idx] < slopeConv[idx-1] - maxSlopeDecay:
+			slopeConv[idx] = slopeConv[idx-1] - maxSlopeDecay
+
+	slopeConv = np.clip(slopeConv, 0.0, np.inf)
 
 	# Smooth out slope
 	slopeConv = smoothByPrevN(slopeConv, 3)
+
+	plt.plot(slopeMagAtPoint, label='slopeMagAtPoint')
+	plt.plot(slopeConv, label='slopeConvN')
+	# plt.legend()
+	# plt.show()
 
 	# Get initial, raw tilt
 	tilt = -changeInAngle
 
 	# Set beginning and ending points to flat
-	tilt[:LOCKED_PT_CNT*3] = 0.0
-	tilt[-LOCKED_PT_CNT:] = 0.0
+	tilt[:LOCKED_PT_CNT-3] = 0.0
+	tilt[-LOCKED_PT_CNT+3:] = 0.0
 
 	# Zero tilt of back and forth motion
-	if True:
+	if False:
 		reversePointDist = 1
 		positiveTurnPoints = np.zeros_like(changeInAngle, dtype=np.int16)
 		positiveTurnPoints[changeInAngle > 0.0] = 1
@@ -594,12 +616,18 @@ def calculatePathRotations(path, screwJoinAngle=None):
 
 	preClipTilt = deepcopy(tilt)
 
-	# Multiply by slopeConv
-	tilt = smoothByNextN(deepcopy(tilt), 5)*slopeConv*3
+	plt.plot(tilt, label='tilt')
+
 	
+	plt.plot(tilt, label='tiltS')
+
+
 	# Limit max rotation a little to prevent hard turns from blowing out resolution
-	PRE_SMOOTH_MAX_TILT = TRACK_MAX_TILT*1.2
+	PRE_SMOOTH_MAX_TILT = TRACK_MAX_TILT*1.0
 	tilt = np.clip(tilt, -PRE_SMOOTH_MAX_TILT, PRE_SMOOTH_MAX_TILT)
+
+	plt.plot(tilt, label='tiltC')
+	
 
 	# Smooth tilts
 	SMOOTH_CNT = 1
@@ -611,9 +639,19 @@ def calculatePathRotations(path, screwJoinAngle=None):
 		currTilts[SMOOTH_CNT:-SMOOTH_CNT] = smoothTilts
 		# currTilts = max_by_absolute_value(currTilts, tilt)
 
+	plt.plot(currTilts, label='currTilts')
+
+	# Multiply by slopeConv
+	currTilts = smoothByNextN(deepcopy(currTilts), 3)*slopeConv*2
+
 	# Limit max rotation
 	currTilts = np.clip(currTilts, -TRACK_MAX_TILT, TRACK_MAX_TILT)
 
+
+	plt.plot(currTilts, label='currTiltsF')
+	
+	# plt.legend()
+	# plt.show()
 
 	# # Reduce initial tilts
 	# ZERO_PTS = LOCKED_PT_CNT*2
@@ -867,7 +905,7 @@ def loadChangesToQueue(file_path, pathQueue):
 					pathList = pkl.load(open(self.file_path, 'rb'))
 					self.pathQueue.put(pathList)
 				except:
-					print(f"Faield to load path")
+					print(f"Failed to load path")
 
 	event_handler = FileChangeHandler(file_path, pathQueue)
 

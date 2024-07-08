@@ -122,7 +122,7 @@ def generateCenterScrewRotatingPart():
 	# return(innerRail + outerRail + linear_extrude(0.01)(circle(MARBLE_RAD, _fn=10)).rotate([90, 0, 90])) # Display profile
 	BASE_POS_DROP = MARBLE_RAD/2
 	# Generate height and angle of path at all points
-	zPos = np.arange(-BASE_POS_DROP, SIZE_Z+MARBLE_RAD + SCREW_TOP_PUSH_PTS*SCREW_PITCH/SCREW_RESOLUTION, SCREW_PITCH/SCREW_RESOLUTION)
+	zPos = np.arange(-BASE_POS_DROP, SIZE_Z+MARBLE_RAD, SCREW_PITCH/SCREW_RESOLUTION)
 	angle = zPos/SCREW_PITCH*2*np.pi
 	# zPos += np.sin(zPos*0.7)*1 # Subtely vary Z height to add interest
 	# zPos -= zOffsetOfSupportingRail # Lift all points slightly
@@ -137,8 +137,8 @@ def generateCenterScrewRotatingPart():
 	bottomRailPath = deepcopy(basePath)
 	bottomRailPath[:2] *= SCREW_RAD + SCREW_OUTER_TRACK_DIST
 	bottomRailPath[2] += zOffsetOfSupportingRail
-	bottomRailPath[2, bottomRailPath[2] > SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
-	bottomRailPath[2, -1] = SIZE_Z
+	# bottomRailPath[2, bottomRailPath[2] > SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)] = SIZE_Z-netRad*np.sin(TRACK_CONTACT_ANGLE)
+	# bottomRailPath[2, -1] = SIZE_Z
 	outputScrew += getShapePathSet(bottomRailPath, None, railSphere)
 
 	# Base rail
@@ -154,7 +154,7 @@ def generateCenterScrewRotatingPart():
 	insideRailPath[:2] *= SCREW_RAD - MARBLE_RAD - TRACK_RAD
 	insideRailPath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD - MARBLE_RAD - TRACK_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:]) # Gradually push out marble
 	# Gradually decrease height of top points
-	insideRailPath[2, insideRailPath[2] > SIZE_Z] = SIZE_Z
+	# insideRailPath[2, insideRailPath[2] > SIZE_Z] = SIZE_Z
 	# insideRailPath[2, -SCREW_TOP_PUSH_PTS:] += np.linspace(0, zOffsetOfSupportingRail, SCREW_TOP_PUSH_PTS) * 0.6
 	# insideRailPath[2, -int(SCREW_TOP_PUSH_PTS/2):] += np.linspace(0, zOffsetOfSupportingRail, int(SCREW_TOP_PUSH_PTS/2)) * 0.4
 	outputScrew += getShapePathSet(insideRailPath, None, railSphere)
@@ -190,11 +190,12 @@ def generateCenterScrewRotatingPart():
 	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
 
-	# Supports
-	outputScrewSupports += generateScrewSupports(bottomRailPath, railSphere)
-	outputScrewSupports += generateScrewSupports(baseRailPath, railSphere)
-	outputScrewSupports += generateScrewSupports(insideRailPath, railSphere)
-	outputScrewSupports += generateScrewSupports(baseInsideRailPath, railSphere)
+	# # Supports
+	if GENERATE_SUPPORTS:
+		outputScrewSupports += generateScrewSupports(bottomRailPath, railSphere)
+		outputScrewSupports += generateScrewSupports(baseRailPath, railSphere)
+		outputScrewSupports += generateScrewSupports(insideRailPath, railSphere)
+		outputScrewSupports += generateScrewSupports(baseInsideRailPath, railSphere)
 
 	# Motor Shaft Cutout
 	if MOTOR_TYPE == 'SMALL_DC':

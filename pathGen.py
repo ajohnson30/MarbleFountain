@@ -40,7 +40,7 @@ targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.inte
 
 
 # Init path points
-if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl'):
+if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl') and '-reset' not in sys.argv:
     pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
     initialTemperature = -5.0
 else:
@@ -48,7 +48,7 @@ else:
     pathList = []
     for pathIdx in range(PATH_COUNT):
         path = randomPath(POINT_COUNT, BOUNDING_BOX)
-        path[2, :] = targetHeights[:POINT_COUNT]
+        path[2, :] = targetHeights
         pathList.append(path)
     initialTemperature = 15.0
 
@@ -141,7 +141,7 @@ for pathIteration in range(PATH_ITERS):
 
             scaleFactA = np.interp(pathTempList[pathIdx], [0.0, 2.0, 10.0], [0.0, 0.1, 1.0])
             scaleFactB = np.interp(pathTempList[pathIdx], [2.0, 10.0, 15.0], [1.0, 0.1, 0.05])
-            scaleFactC = np.interp(pathTempList[pathIdx], [0.0, 3.0, 10.0], [1.0, 0.1, 0.0])
+            scaleFactC = np.interp(pathTempList[pathIdx], [-0.5, 0.0, 2.0], [1.0, 0.6, 0.0])
         else:
             scaleFactB = 1.0
             scaleFactC = 1.0
@@ -168,24 +168,33 @@ for pathIteration in range(PATH_ITERS):
 
 
         # Pull towards Z position
-        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.4*scaleFactA+0.05, 15)
-        maxTargHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 1.0, 10) # Pull beginning and end harder
+        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.9*scaleFactA+0.1, 15)
+        maxTargHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.8, 10) # Pull beginning and end harder
         heightForceMix = np.interp(
             np.arange(path.shape[1]),
-            [LOCKED_PT_CNT, LOCKED_PT_CNT*3, POINT_COUNT-LOCKED_PT_CNT*3, POINT_COUNT-LOCKED_PT_CNT],
+            [LOCKED_PT_CNT, LOCKED_PT_CNT*2, POINT_COUNT-LOCKED_PT_CNT*2, POINT_COUNT-LOCKED_PT_CNT],
             [1.0, 0.0, 0.0, 1.0]
         )
         finalTargHeightForce = targHeightForce*(1.0-heightForceMix) + maxTargHeightForce*heightForceMix
-        path += targHeightForce*moveMult
-        forceList.append(targHeightForce)
+        path += finalTargHeightForce*moveMult
+        forceList.append(finalTargHeightForce)
 
 
 
         # Normalize differences between path norms
         pathNormSumForce = np.zeros_like(path)
-        addToPathAndSums(scaleFactB*normalizePathDists(path,  PT_SPACING, 0.5, maxForce=5.0, dropZ=False), path, pathNormSumForce, moveMult)
-        addToPathAndSums(normalizePathDists(path,  PT_SPACING*2, 0.3, maxForce=5.0, pointOffset=2, dropZ=False), path, pathNormSumForce, moveMult)
-        addToPathAndSums(normalizePathDists(path,  PT_SPACING*2, 0.2, maxForce=5.0, pointOffset=3, dropZ=False), path, pathNormSumForce, moveMult)
+        addToPathAndSums(
+            scaleFactB*normalizePathDists(path,  PT_SPACING, 0.5+0.5*scaleFactB, maxForce=5.0),
+            path, pathNormSumForce, moveMult
+        )
+        addToPathAndSums(
+            normalizePathDists(path,  PT_SPACING*2, 0.5, maxForce=5.0, pointOffset=2, dropZ=False),
+            path, pathNormSumForce, moveMult
+        )
+        addToPathAndSums(
+            normalizePathDists(path,  PT_SPACING*2, 0.5, maxForce=5.0, pointOffset=3, dropZ=False),
+            path, pathNormSumForce, moveMult
+        )
         forceList.append(pathNormSumForce)
 
 
@@ -233,13 +242,14 @@ for pathIteration in range(PATH_ITERS):
         curvAdjustMag *= scaleFactC
         
         pathAngleForceSum = np.zeros_like(path)
-        addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 50.0+100*curvAdjustMag, 0.05, 1.5, offset=2), path, pathAngleForceSum, moveMult)
-        addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 50.0+100*curvAdjustMag, 0.05, 1.5, offset=3), path, pathAngleForceSum, moveMult)
+        addToPathAndSums(scaleFactB*update_path_curvature(path, 25.0, 1e6, 0.1, 1.5, offset=1), path, pathAngleForceSum, moveMult)
+        addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 40+50*curvAdjustMag, 0.05, 1.5, offset=2), path, pathAngleForceSum, moveMult)
+        addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 40+50*curvAdjustMag, 0.05, 1.5, offset=3), path, pathAngleForceSum, moveMult)
         addToPathAndSums(scaleFactA*update_path_curvature(path, 30.0, 1e6, 0.02, 3.0, offset=4), path, pathAngleForceSum, moveMult)
 
-        basePathAngleForce = scaleFactB*update_path_curvature(path, 25.0, 1e6, 0.2, 1.5, offset=1)
-        basePathAngleForce[:, :LOCKED_PT_CNT] *= 2.0
-        basePathAngleForce[:, -LOCKED_PT_CNT:] *= 2.0
+        # basePathAngleForce = scaleFactB*update_path_curvature(path, 30.0, 1e6, 0.2, 4.0, offset=2)
+        basePathAngleForce = scaleFactB*correctPathAngle(path, 3.0, 3.1, 1.0+2.0*scaleFactC, diffPointOffsetCnt=2)
+        basePathAngleForce[:, LOCKED_PT_CNT+2:-LOCKED_PT_CNT-2] = 0.0
         addToPathAndSums(basePathAngleForce, path, pathAngleForceSum, moveMult)
 
         forceList.append(pathAngleForceSum)
@@ -252,15 +262,15 @@ for pathIteration in range(PATH_ITERS):
             if pathIdx == cmpIdx: continue
 
             absoluteMinPathForce = scaleFactB * repelPoints(path, pathList[cmpIdx], 5.0, ABSOLUTE_MIN_PT_DIST*2.0) # Absolute required distance between points, only inpacts Z
-            absoluteMinPathForce[:2] /= 4
+            absoluteMinPathForce[:2] /= 1 + 4*scaleFactB
             addToPathAndSums(absoluteMinPathForce, path, repelForce, moveMult)
             
             addToPathAndSums(
-                scaleFactA * repelPoints(path, pathList[cmpIdx], 0.01, 20), # Broadly avoid other paths
+                scaleFactA * repelPoints(path, pathList[cmpIdx], 0.01, 20+40*scaleFactA), # Broadly avoid other paths
                 path, repelForce, moveMult
             )
             addToPathAndSums(
-                scaleFactB * repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 60), # Avoid end points of other paths
+                scaleFactB * repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 30), # Avoid end points of other paths
                 path, repelForce, moveMult
             )
         # Repel away from center lift
@@ -273,8 +283,18 @@ for pathIteration in range(PATH_ITERS):
 
 
         # Correct irregular slopes
-        changeInSlopeForce = correctSlopeChange(path, 0.1*scaleFactB, 0.5*scaleFactB)
-        path += changeInSlopeForce * moveMult # Not sloping up ignores moveMult
+        changeInSlopeForce = np.zeros_like(path)
+        addToPathAndSums(
+            correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=0.3*scaleFactB),
+            path, changeInSlopeForce, moveMult
+        )
+        addToPathAndSums(
+            correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=1.0*scaleFactB, offset=2),
+            path, changeInSlopeForce, moveMult
+        )
+        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=100.0*scaleFactC, offset=8), path, changeInSlopeForce, moveMult)
+        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=100.0*scaleFactC, offset=10), path, changeInSlopeForce, moveMult)
+        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=100.0*scaleFactC, offset=13), path, changeInSlopeForce, moveMult)
         forceList.append(changeInSlopeForce)
 
 
@@ -305,45 +325,47 @@ for pathIteration in range(PATH_ITERS):
         forceMags = [magnitude(fooFrc) for fooFrc in forceList]
 
         # Update dynamic temperature
-        if DO_DYNAMIC_TEMPERATURE:
-            indicatorChar = '~'
+        indicatorChar = '~'
 
-            forceSums = np.sum(forceMags[:-1], axis=0) # Sum forces excluding setpointforce
-            maxForceIdx = np.argmax(forceSums)
+        forceSums = np.sum(forceMags[:-1], axis=0) # Sum forces excluding setpointforce
+        maxForceIdx = np.argmax(forceSums)
 
-            # Calculate current temperature at point
-            maxSumForce = forceSums[maxForceIdx]
-            temperatureVal = np.interp(maxSumForce, PATH_RANDOMIZATION_FUNC[0], PATH_RANDOMIZATION_FUNC[1])
-            temperatureDrop = np.interp(pathTempList[pathIdx], PATH_RANDOMIZATION_FUNC[1], PATH_RANDOMIZATION_FUNC[2])
-            pathTempList[pathIdx] -= temperatureDrop
+        # Calculate current temperature at point
+        maxSumForce = forceSums[maxForceIdx]
+        temperatureVal = np.interp(maxSumForce, PATH_RANDOMIZATION_FUNC[0], PATH_RANDOMIZATION_FUNC[1])
+        temperatureDrop = np.interp(pathTempList[pathIdx], PATH_RANDOMIZATION_FUNC[1], PATH_RANDOMIZATION_FUNC[2])
+        pathTempList[pathIdx] -= temperatureDrop
 
-            if pathTempList[pathIdx] < -10: pathTempList[pathIdx] = -10
+        if pathTempList[pathIdx] < -10: pathTempList[pathIdx] = -10
+        
+        # Update temperature if exceeds current
+        if temperatureVal > pathTempList[pathIdx] and temperatureVal > -0.25:
+            if temperatureVal - pathTempList[pathIdx] > 1.0:
+                pathTempList[pathIdx] += 1
+                indicatorChar = '+'
+            else:
+                pathTempList[pathIdx] = temperatureVal
+                indicatorChar = '^'
+
+
+        # Reset if failed to decrease
+        temperatureIdx = pathIteration%TEMPERATURE_HISTORY_LEN
+        prevTemperature = pathTempHistList[pathIdx][temperatureIdx]
+        
+        if maxSumForce > np.max(pathTempHistList[pathIdx]) + np.std(pathTempHistList[pathIdx]) and maxSumForce > -0.5:
+            indicatorChar = '#'
+            for tmpPathIdx in range(PATH_COUNT):
+                pathTempList[tmpPathIdx] += TEMPERATURE_FAILURE_BOOST
+                pathTempHistList[tmpPathIdx] = 1e9
+
+        pathTempHistList[pathIdx][temperatureIdx] = maxSumForce
+
+        # print(f"{indicatorChar} {maxSumForce:>8.5f} {pathTempList[pathIdx]:>8.5f} {scaleFactB:>1.1f} {scaleFactC:>1.1f}", end=' | ')
+        print(f"{indicatorChar} {maxSumForce:<6.3f} {pathTempList[pathIdx]:<6.3f}", end=' | ')
             
-            # Update temperature if exceeds current
-            if temperatureVal > pathTempList[pathIdx] and temperatureVal > -0.25:
-                if temperatureVal - pathTempList[pathIdx] > 1.0:
-                    pathTempList[pathIdx] += 1
-                    indicatorChar = '+'
-                else:
-                    pathTempList[pathIdx] = temperatureVal
-                    indicatorChar = '^'
 
 
-            # Reset if failed to decrease
-            temperatureIdx = pathIteration%TEMPERATURE_HISTORY_LEN
-            prevTemperature = pathTempHistList[pathIdx][temperatureIdx]
-            
-            if maxSumForce > np.max(pathTempHistList[pathIdx]) + np.std(pathTempHistList[pathIdx]):
-                indicatorChar = '#'
-                for tmpPathIdx in range(PATH_COUNT):
-                    pathTempList[tmpPathIdx] += 10.0
-                    pathTempHistList[tmpPathIdx] = 1e9
 
-            pathTempHistList[pathIdx][temperatureIdx] = maxSumForce
-
-            # print(f"{indicatorChar} {maxSumForce:>8.5f} {pathTempList[pathIdx]:>8.5f} {scaleFactB:>1.1f} {scaleFactC:>1.1f}", end=' | ')
-            print(f"{indicatorChar} {maxSumForce:>8.5f} {pathTempList[pathIdx]:>8.5f}", end=' | ')
-                
         # Resample path if requested
         if pathIteration in RESAMPLE_AT:
             sumForce = np.sum(forceList, axis=0)
@@ -360,19 +382,19 @@ for pathIteration in range(PATH_ITERS):
         pathList[pathIdx] = path
 
         # Plot forces for last map
-        if pathIdx == PATH_COUNT-1:
+        if pathIdx == 0:
             if REALTIME_PLOTTING_FORCEMAGS:
                 medianForceMags = [np.max(fooMag) for fooMag in forceMags]
                 medianForceMagQueue.put({
-                     'boundingBoxForce': medianForceMags[0],
-                    'targHeightForce': medianForceMags[1],
-                    'pathNormForce': medianForceMags[2],
-                    'noSelfIntersectionForce': medianForceMags[3], 
-                    'pathAngleForce': medianForceMags[4],
-                    'repelForce': medianForceMags[5],
-                    'changeInSlopeForce': medianForceMags[6],
-                    'downHillForce': medianForceMags[7],
-                    'setPtForce':medianForceMags[8],
+                    'boundingBoxForce': np.max(np.linalg.norm(boundingBoxForce, axis=0)),
+                    'targHeightForce': np.max(np.linalg.norm(targHeightForce, axis=0)),
+                    'pathNormForce': np.max(np.linalg.norm(pathNormSumForce, axis=0)),
+                    'noSelfIntersectionForce': np.max(np.linalg.norm(noSelfIntersectionForce, axis=0)), 
+                    'pathAngleForce': np.max(np.linalg.norm(pathAngleForceSum, axis=0)),
+                    'repelForce': np.max(np.linalg.norm(repelForce, axis=0)),
+                    'changeInSlopeForce': np.max(np.linalg.norm(changeInSlopeForce, axis=0)),
+                    'downHillForce': np.max(np.linalg.norm(downHillForce, axis=0)),
+                    'setPtForce': np.max(np.linalg.norm(setPtForce, axis=0)),
                 })
 
     # Print endline for logging
