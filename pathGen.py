@@ -108,7 +108,7 @@ for pathIteration in range(PATH_ITERS):
     pathFrac = pathIteration/PATH_ITERS
 
 
-    if np.sum(pathTempList) == -40.0:
+    if np.sum(pathTempList) <= -10.0*PATH_COUNT:
         print(f"Paths converged, exiting early")
         break
 
@@ -247,9 +247,10 @@ for pathIteration in range(PATH_ITERS):
         addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 40+50*curvAdjustMag, 0.05, 1.5, offset=3), path, pathAngleForceSum, moveMult)
         addToPathAndSums(scaleFactA*update_path_curvature(path, 30.0, 1e6, 0.02, 3.0, offset=4), path, pathAngleForceSum, moveMult)
 
-        # basePathAngleForce = scaleFactB*update_path_curvature(path, 30.0, 1e6, 0.2, 4.0, offset=2)
-        basePathAngleForce = scaleFactB*correctPathAngle(path, 3.0, 3.1, 1.0+2.0*scaleFactC, diffPointOffsetCnt=2)
-        basePathAngleForce[:, LOCKED_PT_CNT+2:-LOCKED_PT_CNT-2] = 0.0
+        # basePathAngleForce = scaleFactB*update_path_curvature(path, 30.0, 1e6, 0.2, 10.0, offset=2)
+        basePathAngleForce = scaleFactB*correctPathAngle(path, 3.0, 3.1, 1.0+3.0*scaleFactC, diffPointOffsetCnt=1)
+
+        basePathAngleForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] = 0.0
         addToPathAndSums(basePathAngleForce, path, pathAngleForceSum, moveMult)
 
         forceList.append(pathAngleForceSum)
@@ -336,7 +337,8 @@ for pathIteration in range(PATH_ITERS):
         temperatureDrop = np.interp(pathTempList[pathIdx], PATH_RANDOMIZATION_FUNC[1], PATH_RANDOMIZATION_FUNC[2])
         pathTempList[pathIdx] -= temperatureDrop
 
-        if pathTempList[pathIdx] < -10: pathTempList[pathIdx] = -10
+        if pathTempList[pathIdx] < -10:
+            pathTempList[pathIdx] = -10
         
         # Update temperature if exceeds current
         if temperatureVal > pathTempList[pathIdx] and temperatureVal > -0.25:

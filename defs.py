@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print15/'
+WORKING_DIR = 'proc/Print16/'
 
 if len(sys.argv) > 1:
     WORKING_DIR = sys.argv[1]
@@ -23,10 +23,10 @@ INITIAL_POINT_MULT_SLOPE = 1.5*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
-PATH_COUNT = 4 # Numer of paths to generate
+PATH_COUNT = 3 # Numer of paths to generate
 
 # Path gen optimization
-PATH_ITERS = 2000 # Number of iterations to optimize too
+PATH_ITERS = 10000 # Number of iterations to optimize too
 RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterations
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
@@ -39,8 +39,8 @@ RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
 #   A negative temp indicates magnitude of force updates, with -10 being 0
 #   Pairs are (max force mag, noise setting, temp decay)
 DO_DYNAMIC_TEMPERATURE = True
-TEMPERATURE_HISTORY_LEN = 200
-TEMPERATURE_FAILURE_BOOST = 10.0
+TEMPERATURE_HISTORY_LEN = 400
+TEMPERATURE_FAILURE_BOOST = 20.0
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
     [10.0, -10.0, 0.1],
     [13.0, 0.0, 0.08],
@@ -81,7 +81,7 @@ MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*0.3 # Maximum XY acceleration between ea
 MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL # Radius to merge points beneath
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join
 
-PARTICLE_DRAG = 0.8 # Fraction of velocity retained across frames
+PARTICLE_DRAG = 0.7 # Fraction of velocity retained across frames
 SUPPORT_ATTRACTION_CONSTANT = 80.0 # Constant multiplier for attraction force between particles
 SUPPORT_MAX_ATTRACTION_DIST = 50.0 # DISABLED max attraction distance
 SUPPORT_BOUNDARY_FORCE_MAG = 20.0 # Force of boundary limitation, in force/mm
@@ -93,10 +93,10 @@ Z_DIFF_MAX = MARBLE_RAD*6 # Z difference of max repulsion force
 POS_DIFF_MIN = MARBLE_RAD*1.5 # min XY diff of repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 
-PULL_TO_CENTER_MAG = 0.05 # Magnitude of force pulling points to target radius
+PULL_TO_CENTER_MAG = 0.0 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-REALTIME_PLOTTING_FORCEMAGS = True
+REALTIME_PLOTTING_FORCEMAGS = False
 SUPPORT_VIS = False # Output support gen visualization
 GENERATE_SUPPORTS = True
 LOAD_EXISTING_PATH = True
