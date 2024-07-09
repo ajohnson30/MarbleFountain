@@ -42,7 +42,7 @@ targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.inte
 # Init path points
 if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl') and '-reset' not in sys.argv:
     pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
-    initialTemperature = -5.0
+    initialTemperature = -0.5
 else:
     # Generate initial path
     pathList = []
@@ -168,7 +168,7 @@ for pathIteration in range(PATH_ITERS):
 
 
         # Pull towards Z position
-        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.9*scaleFactA+0.1, 15)
+        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.9*scaleFactA+0.0, 15)
         maxTargHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.8, 10) # Pull beginning and end harder
         heightForceMix = np.interp(
             np.arange(path.shape[1]),
@@ -224,6 +224,15 @@ for pathIteration in range(PATH_ITERS):
                 pathAngleForce += correctPathAngle(path, 2.6, 3.14, 3.0, diffPointOffsetCnt=2)
 
 
+        # Move to set points
+        setPtForce = np.zeros_like(path)
+        setPointIndices = setPointIndexList[pathIdx]
+        setPoints = setPointList[pathIdx]
+        setPtForce[:, setPointIndices] = setPoints[3] * (setPoints[:3] - path[:, setPointIndices])
+        path += setPtForce * moveMult
+        forceList.append(setPtForce)
+
+
 
         # Limit path curvature
         # Calculate turnaround points to adjust curvature
@@ -263,7 +272,7 @@ for pathIteration in range(PATH_ITERS):
             if pathIdx == cmpIdx: continue
 
             absoluteMinPathForce = scaleFactB * repelPoints(path, pathList[cmpIdx], 5.0, ABSOLUTE_MIN_PT_DIST*2.0) # Absolute required distance between points, only inpacts Z
-            absoluteMinPathForce[:2] /= 1 + 4*scaleFactB
+            # absoluteMinPathForce[:2] /= 1 + 4*scaleFactB
             addToPathAndSums(absoluteMinPathForce, path, repelForce, moveMult)
             
             addToPathAndSums(
@@ -290,12 +299,12 @@ for pathIteration in range(PATH_ITERS):
             path, changeInSlopeForce, moveMult
         )
         addToPathAndSums(
-            correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=1.0*scaleFactB, offset=2),
+            correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=0.01*scaleFactB, offset=2),
             path, changeInSlopeForce, moveMult
         )
-        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=100.0*scaleFactC, offset=8), path, changeInSlopeForce, moveMult)
-        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=100.0*scaleFactC, offset=10), path, changeInSlopeForce, moveMult)
-        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=100.0*scaleFactC, offset=13), path, changeInSlopeForce, moveMult)
+        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=0.2, offset=3), path, changeInSlopeForce, moveMult)
+        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=0.2, offset=4), path, changeInSlopeForce, moveMult)
+        addToPathAndSums(correctSlopeChange(path, 0.1*scaleFactB, 0.0*scaleFactB, upwardsForceMag=0.2, offset=5), path, changeInSlopeForce, moveMult)
         forceList.append(changeInSlopeForce)
 
 
@@ -307,7 +316,7 @@ for pathIteration in range(PATH_ITERS):
 
 
 
-        # Pull towards set points
+        # Move to set points
         setPtForce = np.zeros_like(path)
         setPointIndices = setPointIndexList[pathIdx]
         setPoints = setPointList[pathIdx]

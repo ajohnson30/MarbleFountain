@@ -31,6 +31,7 @@ outputAssembly.save_as_scad(WORKING_DIR + "Screw.scad")
 
 # Load path data
 pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
+pathList = [subdividePath(path) for path in pathList]
 if GLASS_MARBLE_14mm:
 	pathList = [subdividePath(path) for path in pathList]
 rotList = [calculatePathRotations(pathList[pathIdx], getPathAnchorAngle(pathIdx)) for pathIdx in range(len(pathList))]

@@ -122,7 +122,7 @@ def generateCenterScrewRotatingPart():
 	# return(innerRail + outerRail + linear_extrude(0.01)(circle(MARBLE_RAD, _fn=10)).rotate([90, 0, 90])) # Display profile
 	BASE_POS_DROP = MARBLE_RAD/2
 	# Generate height and angle of path at all points
-	zPos = np.arange(-BASE_POS_DROP, SIZE_Z+MARBLE_RAD, SCREW_PITCH/SCREW_RESOLUTION)
+	zPos = np.arange(-BASE_POS_DROP, SIZE_Z+MARBLE_RAD*2.5, SCREW_PITCH/SCREW_RESOLUTION)
 	angle = zPos/SCREW_PITCH*2*np.pi
 	# zPos += np.sin(zPos*0.7)*1 # Subtely vary Z height to add interest
 	# zPos -= zOffsetOfSupportingRail # Lift all points slightly
@@ -260,7 +260,7 @@ def generateScrewPathJoins(angle):
 	railPath[2, 1:PT_CNT+1] = entryRad*np.sin(bottomAngles)
 
 	# Upper part of semicircular feature
-	distMM = 10
+	distMM = 5
 	bottomAngles = np.linspace(0, 0, PT_CNT)
 	railPath[1, PT_CNT+1:2*PT_CNT+1] = (np.cos(np.linspace(0, np.pi, PT_CNT))+1)/2 * (entryRad-vertRailSideOffset) + vertRailSideOffset
 	railPath[2, PT_CNT+1:2*PT_CNT+1] = np.linspace(0, distMM, PT_CNT)
@@ -413,26 +413,42 @@ def generateTrackFromPathSubdiv(path, rotations):
 	tallPoints[int(UNIVERSAL_FN/2):, 1] -= lowerDist
 	tallRail = linear_extrude(0.2)(polygon(tallPoints)).rotate([90, 0, 90])
 
+	medTallPoints = deepcopy(railPoints)
+	medTallPoints[int(UNIVERSAL_FN/2):, 1] -= lowerDist*0.75
+	medTallRail = linear_extrude(0.2)(polygon(medTallPoints)).rotate([90, 0, 90])
+
 	medPoints = deepcopy(railPoints)
-	medPoints[int(UNIVERSAL_FN/2):, 1] -= lowerDist/3
+	medPoints[int(UNIVERSAL_FN/2):, 1] -= lowerDist*0.5
 	medRail = linear_extrude(0.2)(polygon(medPoints)).rotate([90, 0, 90])
 	# tallRail = polygon(outPts).rotate([90, 0, 90])
+
+	medShortPoints = deepcopy(railPoints)
+	medShortPoints[int(UNIVERSAL_FN/2):, 1] -= lowerDist*0.25
+	medShortRail = linear_extrude(0.2)(polygon(medShortPoints)).rotate([90, 0, 90])
 
 	rightSupportOffset = [0, trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]
 	leftSupportOffset = [0, -trackToPathDist*np.cos(TRACK_CONTACT_ANGLE), -trackToPathDist*np.sin(TRACK_CONTACT_ANGLE)]
 
 	rightTrackSet = [
 		tallRail.translate(rightSupportOffset),
+		medTallRail.translate(rightSupportOffset),
 		medRail.translate(rightSupportOffset),
+		medShortRail.translate(rightSupportOffset),
 		shortRail.translate(rightSupportOffset),
+		medShortRail.translate(rightSupportOffset),
 		medRail.translate(rightSupportOffset),
+		medTallRail.translate(rightSupportOffset),
 	]
 
 	leftTrackSet = [
 		tallRail.translate(leftSupportOffset),
+		medTallRail.translate(leftSupportOffset),
 		medRail.translate(leftSupportOffset),
+		medShortRail.translate(leftSupportOffset),
 		shortRail.translate(leftSupportOffset),
+		medShortRail.translate(leftSupportOffset),
 		medRail.translate(leftSupportOffset),
+		medTallRail.translate(leftSupportOffset),
 	]
 
 	tracks = sphere(0)

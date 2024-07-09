@@ -406,12 +406,13 @@ def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2, upwardsForceMag = 
 			upwardsForceMag = forceMag
 		
 		slopeErr = (slope - averageSlope)/averageSlope
+
 		# slopeErr = np.where(slopeErr < 0, slopeErr*2, slopeErr) # Double magnitude of overly flat slope
 
-		slopeForce = np.where(slopeErr < 0, slopeErr*upwardsForceMag, slopeErr*forceMag)
+		slopeForce = np.where(slopeErr > 0, slopeErr*upwardsForceMag, slopeErr*forceMag)
 
-		outForces[2, offset*2:] -= slopeErr*slopeErrMag/2
-		outForces[2, :-offset*2] += slopeErr*slopeErrMag/2
+		outForces[2, offset*2:] += slopeForce/2
+		outForces[2, :-offset*2] -= slopeForce/2
 
 
 	if slopeErrMag > 0.0:
@@ -429,19 +430,25 @@ def correctSlopeChange(path, forceMag = 1.0, slopeErrMag=0.2, upwardsForceMag = 
 
 	return(outForces)
 
-def preventUphillMotion(path, forceMag = 0.1, minSlope = 0.1):
+def preventUphillMotion(path, forceMag = 0.1):
 	slopeDownForce = np.zeros_like(path)
 	zVal = path[2]
 	zDiff = np.diff(zVal)
+	zDiffAvg = np.average(zDiff)
 	startIdx = None
 
 	zTargetMax = deepcopy(zVal)
 	zTargetMin = deepcopy(zVal)
 	for idx in range(len(zVal)):
-		zTargetMax[idx] = np.max(zVal[idx:]) + minSlope
-		zTargetMin[idx] = np.min(zVal[:idx+1]) - minSlope
+		zTargetMax[idx] = np.max(zVal[idx:])
+		zTargetMin[idx] = np.min(zVal[:idx+1])
+
+	zTargetMax = np.where(zTargetMax > zVal+zDiffAvg, zTargetMax, zVal)
+	zTargetMin = np.where(zTargetMin < zVal-zDiffAvg, zTargetMax, zVal)
+
 	zTargMaxRatio = np.linspace(0.0, 1.0, len(zVal))
 	zTarget = zTargMaxRatio*zTargetMax + (1.0-zTargMaxRatio)*zTargetMin
+
 	# zTarget = (zTargetMax+zTargetMin) / 2.0
 	slopeDownForce[2] = (zTarget - zVal) * forceMag
 
@@ -571,7 +578,7 @@ def calculatePathRotations(path, screwJoinAngle=None):
 	pointSlopesStandardized = (PT_DROP - np.diff(path[2])) / PT_SPACING
 
 	# Convert slope at each point into a multiplier
-	pointSlopes *= -1
+	pointSlopes *= -2
 	pointSlopes -= np.min(pointSlopes)
 	slopeMagAtPoint = pointSlopes / np.average(pointSlopes)
 	slopeMagAtPoint += 0.5
@@ -592,17 +599,12 @@ def calculatePathRotations(path, screwJoinAngle=None):
 	# Smooth out slope
 	slopeConv = smoothByPrevN(slopeConv, 3)
 
-	plt.plot(slopeMagAtPoint, label='slopeMagAtPoint')
-	plt.plot(slopeConv, label='slopeConvN')
-	# plt.legend()
-	# plt.show()
-
 	# Get initial, raw tilt
-	tilt = -changeInAngle
+	tilt = -changeInAngle*2
 
-	# Set beginning and ending points to flat
-	tilt[:LOCKED_PT_CNT-3] = 0.0
-	tilt[-LOCKED_PT_CNT+3:] = 0.0
+	# # Set beginning and ending points to flat
+	# tilt[:LOCKED_PT_CNT-3] = 0.0
+	# tilt[-LOCKED_PT_CNT+3:] = 0.0
 
 	# Zero tilt of back and forth motion
 	if False:
@@ -616,18 +618,11 @@ def calculatePathRotations(path, screwJoinAngle=None):
 
 	preClipTilt = deepcopy(tilt)
 
-	plt.plot(tilt, label='tilt')
-
-	
-	plt.plot(tilt, label='tiltS')
-
 
 	# Limit max rotation a little to prevent hard turns from blowing out resolution
 	PRE_SMOOTH_MAX_TILT = TRACK_MAX_TILT*1.0
 	tilt = np.clip(tilt, -PRE_SMOOTH_MAX_TILT, PRE_SMOOTH_MAX_TILT)
 
-	plt.plot(tilt, label='tiltC')
-	
 
 	# Smooth tilts
 	SMOOTH_CNT = 1
@@ -639,19 +634,14 @@ def calculatePathRotations(path, screwJoinAngle=None):
 		currTilts[SMOOTH_CNT:-SMOOTH_CNT] = smoothTilts
 		# currTilts = max_by_absolute_value(currTilts, tilt)
 
-	plt.plot(currTilts, label='currTilts')
+		currTilts[:2] = 0
+		currTilts[-2:] = 0
 
 	# Multiply by slopeConv
 	currTilts = smoothByNextN(deepcopy(currTilts), 3)*slopeConv*2
 
 	# Limit max rotation
 	currTilts = np.clip(currTilts, -TRACK_MAX_TILT, TRACK_MAX_TILT)
-
-
-	plt.plot(currTilts, label='currTiltsF')
-	
-	# plt.legend()
-	# plt.show()
 
 	# # Reduce initial tilts
 	# ZERO_PTS = LOCKED_PT_CNT*2

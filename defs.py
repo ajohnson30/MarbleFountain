@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print16/'
+WORKING_DIR = 'proc/Print17/'
 
 if len(sys.argv) > 1:
     WORKING_DIR = sys.argv[1]
@@ -23,7 +23,7 @@ INITIAL_POINT_MULT_SLOPE = 1.5*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
-PATH_COUNT = 3 # Numer of paths to generate
+PATH_COUNT = 4 # Numer of paths to generate
 
 # Path gen optimization
 PATH_ITERS = 10000 # Number of iterations to optimize too
@@ -43,8 +43,8 @@ TEMPERATURE_HISTORY_LEN = 400
 TEMPERATURE_FAILURE_BOOST = 20.0
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
     [10.0, -10.0, 0.1],
-    [13.0, 0.0, 0.08],
-    [13.1, 1.0, 0.1],
+    [14.0, 0.0, 0.05],
+    [14.1, 1.0, 0.05],
     [17.0, 2.0, 0.1],
     [40.0, 15.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20
@@ -81,7 +81,7 @@ MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*0.3 # Maximum XY acceleration between ea
 MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL # Radius to merge points beneath
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join
 
-PARTICLE_DRAG = 0.7 # Fraction of velocity retained across frames
+PARTICLE_DRAG = 0.8 # Fraction of velocity retained across frames
 SUPPORT_ATTRACTION_CONSTANT = 80.0 # Constant multiplier for attraction force between particles
 SUPPORT_MAX_ATTRACTION_DIST = 50.0 # DISABLED max attraction distance
 SUPPORT_BOUNDARY_FORCE_MAG = 20.0 # Force of boundary limitation, in force/mm
@@ -93,10 +93,10 @@ Z_DIFF_MAX = MARBLE_RAD*6 # Z difference of max repulsion force
 POS_DIFF_MIN = MARBLE_RAD*1.5 # min XY diff of repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 
-PULL_TO_CENTER_MAG = 0.0 # Magnitude of force pulling points to target radius
+PULL_TO_CENTER_MAG = 0.1 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-REALTIME_PLOTTING_FORCEMAGS = False
+REALTIME_PLOTTING_FORCEMAGS = True
 SUPPORT_VIS = False # Output support gen visualization
 GENERATE_SUPPORTS = True
 LOAD_EXISTING_PATH = True
@@ -119,7 +119,7 @@ if GLASS_MARBLE_14mm:
 
 # Entry and exit connections
 END_PATH_OFFSET = MARBLE_RAD * (1 + np.sin(TRACK_CONTACT_ANGLE))
-SCREW_VERT_RAIL_MARGIN = -0.25 # Margin between bottom rail and vertical lift supports
+SCREW_VERT_RAIL_MARGIN = -0.15 # Margin between bottom rail and vertical lift supports
 
 MOTOR_TYPE = 'SMALL_DC'
 MOTOR_TYPE = 'NEMA17'
