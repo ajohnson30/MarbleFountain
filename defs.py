@@ -4,7 +4,7 @@ import sys
 GLASS_MARBLE_14mm = False
 WORKING_DIR = 'proc/Print20/'
 
-if len(sys.argv) > 1:
+if len(sys.argv) > 1 and sys.argv[1] != '-reset':
     WORKING_DIR = sys.argv[1]
 
 
@@ -18,12 +18,16 @@ BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 4 # distance from one point to the next
 
-PT_DROP = 0.8    # target z drop per pt
+PT_DROP = 0.7    # target z drop per pt
 INITIAL_POINT_MULT_SLOPE = 1.5*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
-PATH_COUNT = 6 # Numer of paths to generate
+PATH_COUNT = 4 # Numer of paths to generate
+MIRROR_PATHS = True
+if MIRROR_PATHS:
+    SIZE_X = SIZE_Y
+
 
 # Path gen optimization
 PATH_ITERS = 10000 # Number of iterations to optimize too
@@ -31,7 +35,7 @@ RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterat
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 5 # How many random points to generate if LESS_RANDOM_INIT_PATH
+RANDOM_CNT = 6 # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay

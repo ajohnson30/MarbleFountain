@@ -12,6 +12,7 @@ import os
 
 from defs import *
 from shared import *
+import positionFuncs as pf
 
 # Check if the directory exists
 if not os.path.exists(WORKING_DIR):
@@ -409,6 +410,19 @@ for pathIteration in range(PATH_ITERS):
                     'downHillForce': np.max(np.linalg.norm(downHillForce, axis=0)),
                     'setPtForce': np.max(np.linalg.norm(setPtForce, axis=0)),
                 })
+
+        # Make all paths equal if requested
+        if MIRROR_PATHS:
+            for mirrorIdx in range(1, PATH_COUNT):
+                angle = getPathAnchorAngle(mirrorIdx) - getPathAnchorAngle(0)
+                centeredPath = deepcopy(pathList[0])
+                centeredPath[0] -= SIZE_X/2
+                centeredPath[1] -= SIZE_Y/2
+                rotPath = np.array(pf.doRotationMatrixes(centeredPath, [0, 0, angle]))
+                rotPath[0] += SIZE_X/2
+                rotPath[1] += SIZE_Y/2
+                pathList[mirrorIdx] = rotPath
+            break
 
     # Print endline for logging
     print(' ')
