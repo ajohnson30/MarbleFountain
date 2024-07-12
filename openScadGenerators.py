@@ -152,7 +152,11 @@ def generateCenterScrewRotatingPart():
 	# Inside rail
 	insideRailPath = deepcopy(basePath)
 	insideRailPath[:2] *= SCREW_RAD - MARBLE_RAD - TRACK_RAD
-	insideRailPath[:2, -SCREW_TOP_PUSH_PTS:] = ((SCREW_RAD - MARBLE_RAD - TRACK_RAD) + (np.linspace(0, MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:]) # Gradually push out marble
+	# Push marble out at top
+	insideRailPath[:2, -SCREW_TOP_PUSH_PTS:] = (
+		((SCREW_RAD - MARBLE_RAD - TRACK_RAD) 
+   		+ (np.linspace(0, (MARBLE_RAD+SCREW_OUTER_TRACK_DIST+TRACK_RAD)/2, SCREW_TOP_PUSH_PTS))) * (basePath[:2, -SCREW_TOP_PUSH_PTS:])
+	 )
 	# Gradually decrease height of top points
 	# insideRailPath[2, insideRailPath[2] > SIZE_Z] = SIZE_Z
 	# insideRailPath[2, -SCREW_TOP_PUSH_PTS:] += np.linspace(0, zOffsetOfSupportingRail, SCREW_TOP_PUSH_PTS) * 0.6
@@ -337,14 +341,13 @@ def generateScrewPathJoins(angle):
 	# Add supports to vertical columns
 	minZ = np.min(topRailPath[2])
 	maxZ = np.max(railPath[2, :-1])
-	SUPPORT_PTS = 21
+	SUPPORT_PTS = 19
 	SUPPORT_DIST = TRACK_RAD*3
 	supportPath = np.zeros((3, SUPPORT_PTS))
 	supportPath[0, :] = railPath[0, -1]
 	supportPath[1, :] = railPath[1, -1]
 	supportPath[2, :] = np.linspace(minZ, maxZ, SUPPORT_PTS) # Interpolate Z positions
 	supportPath[0, 1::2] += SUPPORT_DIST
-	supportPath[1, 1::2] += SUPPORT_DIST
 
 	# Save, mirror, save
 	outputGeometry += getShapePathSet(supportPath, None, railSphere)
@@ -353,6 +356,26 @@ def generateScrewPathJoins(angle):
 	supportPath_right[1] *= -1
 	outputGeometry += getShapePathSet(supportPath_right, None, railSphere)
 	outputGeometry += getShapePathSet(supportPath_right[:, 1::2], None, railSphere)
+
+	# Add supporting connections to adjacent path
+	# vertRailDistFromSpiral
+	# vertRailSideOffset
+	# zOffsetOfSupportingRail
+	SUPPORT_MATCH_JOINS = 7
+	supportBasePos = [vertRailDistFromSpiral+SUPPORT_DIST, vertRailSideOffset, 0]
+	supportMatchPos = pf.doRotationMatrixes([vertRailDistFromSpiral+SCREW_RAD+SUPPORT_DIST, -vertRailSideOffset, 0], [0, 0, 2*np.pi/PATH_COUNT])
+	supportMatchPos[0] -= SCREW_RAD
+
+	existingSupportZPoints = np.linspace(minZ, maxZ, SUPPORT_PTS)
+	existingSupportZPoints = existingSupportZPoints[1:-1]
+	supportJoins = np.zeros((3, SUPPORT_PTS-2))
+	supportJoins[:] = np.tile(np.array(supportBasePos)[:, np.newaxis], SUPPORT_PTS-2)
+	supportJoins[:, ::2] = np.tile(np.array(supportMatchPos)[:, np.newaxis], SUPPORT_PTS-2)[:, ::2]
+	# supportJoins[:, ::2] = np.tile(supportMatchPos, (3, SUPPORT_PTS-2))[:, :(SUPPORT_PTS-2)][:, ::2]
+	# supportJoins[:, ::2] += 10
+	supportJoins[2] = existingSupportZPoints
+	outputGeometry += getShapePathSet(supportJoins, None, railSphere)
+	
 
 	supportPoints = np.concatenate([supportPath[:, 1::2], supportPath_right[:, 1::2]], axis=1)
 	supportPoints[0] += SCREW_RAD

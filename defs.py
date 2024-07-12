@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/tmp/'
+WORKING_DIR = 'proc/Print20/'
 
 if len(sys.argv) > 1:
     WORKING_DIR = sys.argv[1]
