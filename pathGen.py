@@ -47,11 +47,13 @@ else:
     # Generate initial path
     pathList = []
     for pathIdx in range(PATH_COUNT):
-        path = randomPath(POINT_COUNT, BOUNDING_BOX)
+        path = randomPath(POINT_COUNT, BOUNDING_BOX, pathIdx)
         path[2, :] = targetHeights
         pathList.append(path)
     initialTemperature = 15.0
 
+    pkl.dump(pathList, open(WORKING_DIR+'path.pkl', 'wb'))
+    pkl.dump(pathList, open(WORKING_DIR+'PathDump/initial_path.pkl', 'wb'))
 
 # Calculate set points at start and end of track
 setPointIndexList = []

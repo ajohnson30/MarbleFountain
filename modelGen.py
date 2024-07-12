@@ -25,8 +25,8 @@ os.makedirs(WORKING_DIR+'test/', exist_ok=True)
 outputAssembly = generateCenterScrewRotatingPart()
 outputAssembly.save_as_scad(WORKING_DIR + "Screw.scad")
 
-# outputAssembly = cylinder(90, 5, 2)
-# outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
+outputAssembly = cylinder(55, 5, 2)
+outputAssembly.save_as_scad(WORKING_DIR + "Foot.scad")
 
 
 # Load path data
@@ -58,7 +58,7 @@ screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 
 
 # Get list of all points which require support
-supportAnchors = [calculateSupportAnchorsForPath(path, rot) for path, rot in zip(pathList, rotList)]
+supportAnchors = [calculateSupportAnchorsForPath(path[:, ::2], rot[:, ::2]) for path, rot in zip(pathList, rotList)]
 
 supportPoints = np.concatenate(supportAnchors+screwLoadSupportAnchors, axis=1)
 

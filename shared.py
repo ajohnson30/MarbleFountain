@@ -18,15 +18,30 @@ def angDiff(a1, a2):
 	return a
 
 # Generate random initial path
-def randomPath(ptCnt, box):
+def randomPath(ptCnt, box, pathIdx):
 	path = np.zeros((3, ptCnt), dtype=np.double)
+
+	angle = getPathAnchorAngle(pathIdx)
+	
+	
+
+
 	if LESS_RANDOM_INIT_PATH:
 		# Sort of random points
 		for idx in range(3):
 			randPts = np.random.random(RANDOM_CNT+2)
-			randPts[0] = 0.5
-			randPts[-1] = 0.5
-			path[idx] = np.interp(np.linspace(0, RANDOM_CNT+2, ptCnt), np.arange(RANDOM_CNT+2), randPts)*box[idx]
+			randPts *= box[idx]
+			if idx == 0:
+				startPos = np.cos(angle)*(SCREW_RAD + PT_SPACING) + box[idx]/2
+				randPts[0] = startPos
+				randPts[-1] = startPos
+			elif idx == 1:
+				startPos = np.sin(angle)*(SCREW_RAD + PT_SPACING) + box[idx]/2
+				randPts[0] = startPos
+				randPts[-1] = startPos
+			path[idx] = np.interp(np.linspace(0, RANDOM_CNT+2, ptCnt), np.arange(RANDOM_CNT+2), randPts)
+
+			path[idx] += 0.5 - np.random.random(len(path[idx]))
 	else:
 		# Fully random points
 		path[:3] = np.random.random(path[:3].shape)

@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print17/'
+WORKING_DIR = 'proc/tmp/'
 
 if len(sys.argv) > 1:
     WORKING_DIR = sys.argv[1]
@@ -18,12 +18,12 @@ BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 4 # distance from one point to the next
 
-PT_DROP = 0.75    # target z drop per pt
+PT_DROP = 0.8    # target z drop per pt
 INITIAL_POINT_MULT_SLOPE = 1.5*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
-PATH_COUNT = 4 # Numer of paths to generate
+PATH_COUNT = 6 # Numer of paths to generate
 
 # Path gen optimization
 PATH_ITERS = 10000 # Number of iterations to optimize too
@@ -31,7 +31,7 @@ RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterat
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 15 # How many random points to generate if LESS_RANDOM_INIT_PATH
+RANDOM_CNT = 5 # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay
@@ -96,13 +96,13 @@ POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 PULL_TO_CENTER_MAG = 0.1 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-REALTIME_PLOTTING_FORCEMAGS = True
+REALTIME_PLOTTING_FORCEMAGS = False
 SUPPORT_VIS = False # Output support gen visualization
 GENERATE_SUPPORTS = True
 LOAD_EXISTING_PATH = True
 
-UNIVERSAL_FN = 10 # How many sides for each triangle
-HIGHER_RES_FN = 20
+UNIVERSAL_FN = 16 # How many sides for each triangle
+HIGHER_RES_FN = 30
 
 # Screw lift
 SCREW_RAD = 12 # Center of rotation to center of marble on track
