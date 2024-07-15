@@ -10,8 +10,8 @@ if len(sys.argv) > 1 and sys.argv[1] != '-reset':
 
 # Overall size of box to generate path in
 SIZE_X = 180
-SIZE_Y = 100
-SIZE_Z = 60
+SIZE_Y = 105
+SIZE_Z = 180
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
