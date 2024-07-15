@@ -359,19 +359,37 @@ def generateScrewPathJoins(angle):
 
 	# Add supporting connections to adjacent path
 	if CONNECT_LIFTS:
-		supportBasePos = [vertRailDistFromSpiral+SUPPORT_DIST, vertRailSideOffset, 0]
+		supportBasePos = [vertRailDistFromSpiral+SUPPORT_DIST+SCREW_RAD, vertRailSideOffset, 0]
 		supportMatchPos = pf.doRotationMatrixes([vertRailDistFromSpiral+SCREW_RAD+SUPPORT_DIST, -vertRailSideOffset, 0], [0, 0, 2*np.pi/PATH_COUNT])
-		supportMatchPos[0] -= SCREW_RAD
+		# supportMatchPos[0] -= SCREW_RAD
 
-		existingSupportZPoints = np.linspace(minZ, maxZ, SUPPORT_PTS)
-		existingSupportZPoints = existingSupportZPoints[1:-1]
-		supportJoins = np.zeros((3, SUPPORT_PTS-2))
-		supportJoins[:] = np.tile(np.array(supportBasePos)[:, np.newaxis], SUPPORT_PTS-2)
-		supportJoins[:, ::2] = np.tile(np.array(supportMatchPos)[:, np.newaxis], SUPPORT_PTS-2)[:, ::2]
-		# supportJoins[:, ::2] = np.tile(supportMatchPos, (3, SUPPORT_PTS-2))[:, :(SUPPORT_PTS-2)][:, ::2]
-		# supportJoins[:, ::2] += 10
-		supportJoins[2] = existingSupportZPoints
-		outputGeometry += getShapePathSet(supportJoins, None, railSphere)
+		supportBaseDist = np.linalg.norm(supportBasePos)
+		supportBaseAngle = np.arctan2(supportBasePos[0], supportBasePos[1])
+		supportMatchAngle = np.arctan2(supportMatchPos[0], supportMatchPos[1])
+
+		LIFT_SUPPORT_CROSSES = 5
+		LIFT_SUPPORT_SUBDIV = 11
+		
+		supportPtCnt = LIFT_SUPPORT_CROSSES * LIFT_SUPPORT_SUBDIV
+		supportPts = np.zeros((3, supportPtCnt), dtype=np.double)
+		supportPts[2] = np.linspace(supportPath[2, 1], supportPath[2, -2], supportPtCnt)
+
+		angleList = np.linspace(supportBaseAngle, supportMatchAngle, int((LIFT_SUPPORT_SUBDIV-1)/2))
+		angleList = np.concatenate([angleList, np.flip(angleList[:-1])])
+		print(f"\n")
+		for angleIdx in range(len(angleList)):
+			fooAng = angleList[angleIdx]
+			print(fooAng)
+			supportPts[0, angleIdx::len(angleList)] = np.cos(fooAng) * supportBaseDist
+			supportPts[1, angleIdx::len(angleList)] = np.sin(fooAng) * supportBaseDist
+		
+		supportPts[0] -= SCREW_RAD
+
+		outputGeometry += getShapePathSet(supportPts, None, railSphere)
+
+		supportPts_right = deepcopy(supportPts)
+		supportPts_right[1] *= -1
+		outputGeometry += getShapePathSet(supportPts_right, None, railSphere)
 		
 
 	supportPoints = np.concatenate([supportPath[:, 1::2], supportPath_right[:, 1::2]], axis=1)

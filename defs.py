@@ -11,7 +11,7 @@ if len(sys.argv) > 1 and sys.argv[1] != '-reset':
 # Overall size of box to generate path in
 SIZE_X = 180
 SIZE_Y = 105
-SIZE_Z = 180
+SIZE_Z = 70
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
@@ -24,7 +24,7 @@ POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
 PATH_COUNT = 4 # Numer of paths to generate
-MIRROR_PATHS = True
+MIRROR_PATHS = False
 if MIRROR_PATHS:
     SIZE_X = SIZE_Y
 
@@ -47,8 +47,8 @@ TEMPERATURE_HISTORY_LEN = 400
 TEMPERATURE_FAILURE_BOOST = 20.0
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
     [10.0, -10.0, 0.1],
-    [14.0, 0.0, 0.05],
-    [14.1, 1.0, 0.05],
+    [14.0, 0.0, 0.1],
+    [14.1, 1.0, 0.1],
     [17.0, 2.0, 0.1],
     [40.0, 15.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20
@@ -102,8 +102,9 @@ PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
 REALTIME_PLOTTING_FORCEMAGS = False
 SUPPORT_VIS = False # Output support gen visualization
-GENERATE_SUPPORTS = True
-CONNECT_LIFTS = False
+GENERATE_SUPPORTS = False
+CONNECT_LIFTS = True
+CONNECT_SKIP_TO_NTH = 5
 LOAD_EXISTING_PATH = True
 
 UNIVERSAL_FN = 16 # How many sides for each triangle
