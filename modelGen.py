@@ -105,8 +105,17 @@ rotatingScrew = rotatingScrew.translate(SCREW_POS)
 if GENERATE_SUPPORTS:
 	visPath = None
 	if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
-	supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
-	supportGeometry = generateSupports(supportColumns)
+
+	# supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
+	# with open('tmp_support_gen.pkl', 'wb') as f:
+	# 	pkl.dump(supportColumns, f)
+	# 	exit()
+
+	with open('tmp_support_gen.pkl', 'rb') as f:
+		supportColumns = pkl.load(f)
+
+	# supportGeometry = generateSupports(supportColumns)
+	supportGeometry = generateSupportsV2(supportColumns)
 else:
 	supportGeometry = sphere(0)
 

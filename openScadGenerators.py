@@ -912,3 +912,165 @@ def generateSupports(supportCols):
 	supports -= cutout.translate(SCREW_POS)
 
 	return(supports)
+
+# Helper for interpolation
+def interpHelper(input, interp):
+	return np.interp(
+		input,
+		*interp
+	)
+
+def generateSupportGeometry(col):
+	# Calculate size of each disk
+	size = col.size
+	mergedSize = col.mergedSize
+	if mergedSize == -1: mergedSize = col.size # If a column made it to the base, sent the end radius to 2x the initial
+	ptCnt = len(col.posHist)
+	
+	# Calculate size of each profile
+	sizeList = np.linspace(getColumnRad(size), getColumnRad(mergedSize), ptCnt)
+	if ptCnt > MERGE_SMOOTH_PTS:
+		sizeList[:] = col.size
+		sizeList[-MERGE_SMOOTH_PTS:] = np.linspace(size, mergedSize, MERGE_SMOOTH_PTS)
+	
+	# Generate the profiles	
+	outProfiles = []
+	radList = interpHelper(sizeList, SUPPORT_SIZE_INTERP)
+	for fooIdx in range(ptCnt):
+		fooPos = col.posHist[fooIdx]
+		outProfiles.append(sphere(radList[fooIdx], _fn=UNIVERSAL_FN).translate(fooPos))
+
+	# Chain hull profiles together
+	outerGeo = chain_hull()(*outProfiles)
+
+	hollowGeo = sphere(0)
+	if HOLLOW_SUPPORTS:
+
+		hollowProfiles = []
+		hollowList = interpHelper(sizeList, SUPPORT_HOLLOW_INTERP)
+		for fooIdx in range(ptCnt):
+			fooPos = col.posHist[fooIdx]
+			hollowProfiles.append(sphere(hollowList[fooIdx], _fn=UNIVERSAL_FN).translate(fooPos))
+
+		# Chain hull profiles together
+		hollowGeo = chain_hull()(*hollowProfiles)
+
+	return(outerGeo, hollowGeo)
+
+
+# Generate supports from calculated columns
+def generateSupportsV2(supportCols):
+	supports = sphere(0)
+
+	baseCols = []
+	tempIter = 0
+	# Iterate through all base columns
+	for fooCol in supportCols:
+		if fooCol.mergingInto != -1:
+			continue
+
+		baseCols.append(fooCol)
+
+		fooOuter, fooHollow = generateSupportGeometry(fooCol)
+		outerGeo = fooOuter
+		hollowGeo = fooHollow
+
+		# Add hole through to bottom of base
+		rad = interpHelper(fooCol.size, SUPPORT_SIZE_INTERP)
+		hollowGeo += cylinder(BASE_THICKNESS-1e-3, rad*2, rad*2, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]).translateZ(-BASE_THICKNESS)
+		
+		# Iterate through all branches of tree
+		sameBranchPts = deepcopy(fooCol.mergedFrom)
+		while len(sameBranchPts) > 0:
+			idx = sameBranchPts.pop(0)
+			nextCol = supportCols[idx]
+			sameBranchPts += deepcopy(nextCol.mergedFrom)
+
+			fooOuter, fooHollow = generateSupportGeometry(nextCol)
+			# outerGeo += fooOuter
+			hollowGeo += fooHollow
+
+			# Add outlet hole if applicable
+			if nextCol.size == 2:
+				rad = interpHelper(nextCol.size, SUPPORT_HOLLOW_INTERP)
+				mergePoint = nextCol.posHist[0]				
+
+				hollowGeo += chain_hull()(*[
+					sphere(rad, _fn=UNIVERSAL_FN).translate(mergePoint),
+					sphere(rad, _fn=UNIVERSAL_FN).translate(mergePoint).translateZ(rad*2),
+				])
+
+
+
+		# supports += hollowGeo
+		# supports += outerGeo
+		supports += (outerGeo - hollowGeo)
+
+
+		tempIter += 1
+		if tempIter >= 4:
+			break
+
+	# Make base geometry from conv hull of base points
+	baseSpheres = []
+	for fooCol in baseCols:
+		pt = deepcopy(fooCol.posHist[-1])
+		pt[2] = BASE_OF_MODEL - BASE_THICKNESS + 1e-2
+		# baseSpheres.append(sphere(BASE_THICKNESS/2, _fn=UNIVERSAL_FN).translate(pt))
+
+		baseSpheres.append(cylinder(BASE_THICKNESS/2, SUPPORT_BASE_RAD*0.8, SUPPORT_BASE_RAD, _fn=UNIVERSAL_FN).translate(pt))
+		baseSpheres.append(cylinder(BASE_THICKNESS/2-1e-2, SUPPORT_BASE_RAD, SUPPORT_BASE_RAD*0.8, _fn=UNIVERSAL_FN).translate(pt).translateZ(BASE_THICKNESS/2))
+
+	baseGeo = conv_hull()(*baseSpheres)
+
+	# Poke holes in base for fibers
+	for fooCol in baseCols:
+		rad = interpHelper(fooCol.size, SUPPORT_HOLLOW_INTERP)
+		pt = deepcopy(fooCol.posHist[-1])
+		pt[2] = BASE_OF_MODEL - BASE_THICKNESS
+		baseAng = np.arctan2(pt[1]-SCREW_POS[1], pt[0]-SCREW_POS[0])
+
+		# baseCutout = cylinder(BASE_THICKNESS+1, rad, rad, _fn=UNIVERSAL_FN).translate(pt)
+		baseCutout = chain_hull()(*[
+			sphere(rad, _fn=UNIVERSAL_FN).translate(pt),
+			sphere(rad, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]),
+		])
+
+		LED_CUBE_SIZE = 5.1
+		LED_CUTOUT_H = 3
+		baseCutout += cube([LED_CUBE_SIZE, LED_CUBE_SIZE, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
+		
+		baseGeo -= baseCutout
+
+	# Add vent holes
+	CUTOUT_Z = 2.0
+	ventCylinder = cylinder(CUTOUT_Z, 3.0, 1.0, _fn=UNIVERSAL_FN)
+	ventPts = np.array([deepcopy(foo.posHist[-1]) for foo in baseCols])
+	for idx in range(len(ventPts)):
+		vect = deepcopy(ventPts[idx])
+		vect[2] = 0
+		vect = 300*(vect - SCREW_POS)
+		
+		pt = deepcopy(SCREW_POS)
+		pt[2] = BASE_OF_MODEL - BASE_THICKNESS
+		endPt = pt + vect
+		baseGeo -= chain_hull()(*[
+					ventCylinder.translate(pt),
+					ventCylinder.translate(endPt),
+				])
+
+
+	if MOTOR_TYPE == 'NEMA17':
+		lipThickness = 2
+		maxHeight = 30
+		# cutout = cylinder(maxHeight+lipThickness*2, 4.0, 4.0, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+		cutout = cylinder(maxHeight+lipThickness*2, 11.05, 11.05, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL-BASE_THICKNESS)
+		cutout += cylinder(1.0, 12.0, 11.0, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL-BASE_THICKNESS)
+	baseGeo -= cutout.translate(SCREW_POS)
+
+	(supports + baseGeo).save_as_scad(WORKING_DIR + "TEMP.scad")
+	exit()
+
+		# cutout += cylinder(maxHeight, 11.1, 11.1, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
+
+	return(supports + baseGeo)

@@ -14,7 +14,7 @@ SIZE_Y = 105
 SIZE_Z = 70
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
-BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
+BASE_THICKNESS = 8 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 4 # distance from one point to the next
 
@@ -79,7 +79,7 @@ SMOOTH_TILT_CNT_B = 3 # And then we do it again
 # Support generation constants
 TRACK_SUPPORT_RAD = 1.0 # Initial radius of track support
 TRACK_SUPPORT_MAX_RAD = 2.2 # Maximum support radius
-SUPPORT_LAYER_HEIGHT = 0.25 # Layer height
+SUPPORT_LAYER_HEIGHT = 0.5 # Layer height
 MAX_PARTICLE_VEL = SUPPORT_LAYER_HEIGHT*2.0 # Maximum XY motion between each layer
 MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*0.3 # Maximum XY acceleration between each layer (except in case of emergency to avoid collision)
 MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL # Radius to merge points beneath
@@ -100,16 +100,29 @@ POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 PULL_TO_CENTER_MAG = 0.4 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
+HOLLOW_SUPPORTS = True
+SUPPORT_SIZE_INTERP = np.swapaxes([
+    [1, 1.2],
+    [2, 2.0],
+    [10, 4.0]
+], 0, 1)
+SUPPORT_HOLLOW_INTERP = np.swapaxes([
+    [1, 0.0],
+    [2, 1.2],
+    [10, 3.2]
+], 0, 1)
+SUPPORT_BASE_RAD = 5
+
 REALTIME_PLOTTING_FORCEMAGS = False
 SUPPORT_VIS = False # Output support gen visualization
-GENERATE_SUPPORTS = False
+GENERATE_SUPPORTS = True
 CONNECT_LIFTS = True
 LIFT_SUPPORT_CROSSES = 5
 LIFT_SUPPORT_SUBDIV = 11
 LOAD_EXISTING_PATH = True
 
-UNIVERSAL_FN = 16 # How many sides for each triangle
-HIGHER_RES_FN = 30
+UNIVERSAL_FN = 8 # How many sides for each triangle
+HIGHER_RES_FN = 10
 
 # Screw lift
 SCREW_RAD = 12 # Center of rotation to center of marble on track
