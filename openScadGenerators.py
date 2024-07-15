@@ -358,24 +358,21 @@ def generateScrewPathJoins(angle):
 	outputGeometry += getShapePathSet(supportPath_right[:, 1::2], None, railSphere)
 
 	# Add supporting connections to adjacent path
-	# vertRailDistFromSpiral
-	# vertRailSideOffset
-	# zOffsetOfSupportingRail
-	SUPPORT_MATCH_JOINS = 7
-	supportBasePos = [vertRailDistFromSpiral+SUPPORT_DIST, vertRailSideOffset, 0]
-	supportMatchPos = pf.doRotationMatrixes([vertRailDistFromSpiral+SCREW_RAD+SUPPORT_DIST, -vertRailSideOffset, 0], [0, 0, 2*np.pi/PATH_COUNT])
-	supportMatchPos[0] -= SCREW_RAD
+	if CONNECT_LIFTS:
+		supportBasePos = [vertRailDistFromSpiral+SUPPORT_DIST, vertRailSideOffset, 0]
+		supportMatchPos = pf.doRotationMatrixes([vertRailDistFromSpiral+SCREW_RAD+SUPPORT_DIST, -vertRailSideOffset, 0], [0, 0, 2*np.pi/PATH_COUNT])
+		supportMatchPos[0] -= SCREW_RAD
 
-	existingSupportZPoints = np.linspace(minZ, maxZ, SUPPORT_PTS)
-	existingSupportZPoints = existingSupportZPoints[1:-1]
-	supportJoins = np.zeros((3, SUPPORT_PTS-2))
-	supportJoins[:] = np.tile(np.array(supportBasePos)[:, np.newaxis], SUPPORT_PTS-2)
-	supportJoins[:, ::2] = np.tile(np.array(supportMatchPos)[:, np.newaxis], SUPPORT_PTS-2)[:, ::2]
-	# supportJoins[:, ::2] = np.tile(supportMatchPos, (3, SUPPORT_PTS-2))[:, :(SUPPORT_PTS-2)][:, ::2]
-	# supportJoins[:, ::2] += 10
-	supportJoins[2] = existingSupportZPoints
-	outputGeometry += getShapePathSet(supportJoins, None, railSphere)
-	
+		existingSupportZPoints = np.linspace(minZ, maxZ, SUPPORT_PTS)
+		existingSupportZPoints = existingSupportZPoints[1:-1]
+		supportJoins = np.zeros((3, SUPPORT_PTS-2))
+		supportJoins[:] = np.tile(np.array(supportBasePos)[:, np.newaxis], SUPPORT_PTS-2)
+		supportJoins[:, ::2] = np.tile(np.array(supportMatchPos)[:, np.newaxis], SUPPORT_PTS-2)[:, ::2]
+		# supportJoins[:, ::2] = np.tile(supportMatchPos, (3, SUPPORT_PTS-2))[:, :(SUPPORT_PTS-2)][:, ::2]
+		# supportJoins[:, ::2] += 10
+		supportJoins[2] = existingSupportZPoints
+		outputGeometry += getShapePathSet(supportJoins, None, railSphere)
+		
 
 	supportPoints = np.concatenate([supportPath[:, 1::2], supportPath_right[:, 1::2]], axis=1)
 	supportPoints[0] += SCREW_RAD

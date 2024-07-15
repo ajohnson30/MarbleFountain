@@ -4,6 +4,7 @@ from scipy.spatial.distance import cdist
 from random import random
 from copy import deepcopy
 import pickle as pkl
+import glob
 
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -20,8 +21,20 @@ if not os.path.exists(WORKING_DIR):
     os.makedirs(WORKING_DIR)
 
 # Check if the directory exists
-if not os.path.exists(WORKING_DIR+"PathDump/"): os.makedirs(WORKING_DIR+"PathDump/")
-
+if not os.path.exists(WORKING_DIR+"PathDump/"):
+    os.makedirs(WORKING_DIR+"PathDump/")
+    pathDumpIter = 1
+else:
+    # Get a list of all existing .pkl files in the folder
+    existing_files = glob.glob(os.path.join(WORKING_DIR+"PathDump/", "*.pkl"))
+    
+    # Calculate the next iteration number
+    if not existing_files:
+        pathDumpIter = 0
+    else:
+        # Extract the highest iteration number from existing files
+        highest_iteration = max([int(os.path.basename(f).split('.')[0]) for f in existing_files])
+        pathDumpIter = highest_iteration + 1
 
 startPoints = 3
 targetHeights = np.zeros(POINT_COUNT, dtype=np.double)
@@ -54,7 +67,7 @@ else:
     initialTemperature = 15.0
 
     pkl.dump(pathList, open(WORKING_DIR+'path.pkl', 'wb'))
-    pkl.dump(pathList, open(WORKING_DIR+'PathDump/initial_path.pkl', 'wb'))
+    pkl.dump(pathList, open(WORKING_DIR+'PathDump/000000.pkl', 'wb'))
 
 # Calculate set points at start and end of track
 setPointIndexList = []
@@ -111,7 +124,7 @@ for pathIteration in range(PATH_ITERS):
     pathFrac = pathIteration/PATH_ITERS
 
 
-    if np.sum(pathTempList) <= -10.0*PATH_COUNT:
+    if np.sum(pathTempList) <= -10.0*PATH_COUNT or (MIRROR_PATHS and pathTempList[0] <= -10.0):
         print(f"Paths converged, exiting early")
         break
 
@@ -427,13 +440,14 @@ for pathIteration in range(PATH_ITERS):
     # Print endline for logging
     print(' ')
 
-    if pathIteration%2 == 0:
+    if pathIteration%1 == 0:
         # Use spline interpolation for additonal points
         # fullPaths = [subdividePath(path) for path in pathList]
         # fullPaths = [path for path in pathList]
 
         pkl.dump(pathList, open(WORKING_DIR+'path.pkl', 'wb'))
-        pkl.dump(pathList, open(WORKING_DIR+f"PathDump/1{str(pathIteration).rjust(4, '0')}.pkl", 'wb'))
+        pkl.dump(pathList, open(WORKING_DIR+f"PathDump/{str(pathDumpIter).rjust(6, '0')}.pkl", 'wb'))
+        pathDumpIter += 1
 
 pkl.dump(pathList, open(WORKING_DIR+'path.pkl', 'wb'))
 

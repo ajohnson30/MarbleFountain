@@ -1,9 +1,11 @@
 from os import listdir
 import subprocess as sp
 from subprocess import call
+from stl import mesh
 import time
 
 from defs import *
+
 
 files = listdir(WORKING_DIR)
 tasks = []
@@ -23,3 +25,22 @@ for f in files:
 for foo in tasks:
     print(f"Waiting for {foo}")
     foo.wait()
+
+
+files = listdir(WORKING_DIR)
+for f in files:
+    if f.find(".stl") >= 0:
+        # Load the STL file
+        stl_mesh = mesh.Mesh.from_file(f"{WORKING_DIR}/{f}")
+        
+        # Get all vertices
+        vertices = stl_mesh.vectors.reshape([-1, 3])
+        
+        # Calculate min and max for each dimension
+        min_x, min_y, min_z = np.min(vertices, axis=0)
+        max_x, max_y, max_z = np.max(vertices, axis=0)
+        
+        print(f"\n{f}")
+        print(f"   x:{min_x}:{max_x} ({max_x - min_x})")
+        print(f"   y:{min_y}:{max_y} ({max_y - min_y})")
+        print(f"   z:{min_z}:{max_z} ({max_z - min_z})")

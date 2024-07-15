@@ -14,7 +14,7 @@ int myFunction(int, int);
 
 #define RAMP_DURATION 1000  // Ramp-up duration in milliseconds
 #define START_FREQ 1000     // Starting frequency in Hz
-#define TARGET_FREQ 5000   // Target frequency in Hz
+#define TARGET_FREQ 10000   // Target frequency in Hz
 
 #define POTENTIOMETER_PIN A6
 
@@ -137,7 +137,7 @@ void setup() {
 
   // Set driver parameters
   driver.toff(5);                 // Enables driver in software
-  driver.rms_current(300);        // Set motor RMS current (default 600)
+  driver.rms_current(600);        // Set motor RMS current (default 600)
   driver.microsteps(16);          // Set microsteps to 1/16th
 
   driver.en_pwm_mode(true);       // Toggle stealthChop on TMC2130/2160/5130/5160
@@ -149,14 +149,17 @@ void setup() {
 
 
   // Init LED array
-  FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
+  // FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, DATA_PIN, RGB>(leds, NUM_LEDS);
   
   // setFreq(10000);
 
-  for (uint32_t ii=0; ii<9000; ii+=200) {
-    setFreq(ii);
-    delay(100);
-  }
+  // for (uint32_t ii=0; ii<15000; ii+=200) {
+  //   setFreq(ii);
+  //   delay(100);
+  // }
+
+
   // for (uint32_t ii=6000; ii<7500; ii+=100) {
   //   setFreq(ii);
   //   delay(100);
@@ -166,6 +169,8 @@ void setup() {
 
 #define STEP_DELAY 40
 
+
+uint32_t setFreqVal = 0;
 int testLed = 0;
 void loop() {
   // Calculate new stepper output
@@ -176,38 +181,48 @@ void loop() {
   // digitalWrite(STEP_PIN, LOW);
   // delayMicroseconds(STEP_DELAY);
 
-  // for(int ii=0; ii<NUM_LEDS; ii++){
-  //   int iterDiff = abs(ii-testLed)%NUM_LEDS;
-  //   switch (iterDiff)
-  //   {
-  //   case 0:
-  //     leds[ii] = CRGB(0, 100, 60);
-  //     break;
+  for(int ii=0; ii<NUM_LEDS; ii++){
+    int iterDiff = abs(ii-testLed)%NUM_LEDS;
+    switch (iterDiff)
+    {
+    case 0:
+      leds[ii] = CRGB(0, 100, 60);
+      break;
 
-  //   case 1:
-  //   case NUM_LEDS-1:
-  //     leds[ii] = CRGB(10, 100, 40);
-  //     break;
+    case 1:
+    case NUM_LEDS-1:
+      leds[ii] = CRGB(10, 100, 40);
+      break;
 
-  //   case 2:
-  //   case NUM_LEDS-2:
-  //     leds[ii] = CRGB(20, 100, 10);
-  //     break;
+    case 2:
+    case NUM_LEDS-2:
+      leds[ii] = CRGB(20, 100, 10);
+      break;
 
-  //   case 3:
-  //   case NUM_LEDS-3:
-  //     leds[ii] = CRGB(50, 100, 0);
-  //     break;
+    case 3:
+    case NUM_LEDS-3:
+      leds[ii] = CRGB(50, 100, 0);
+      break;
     
-  //   default:
-  //     leds[ii] = CRGB(100, 100, 0);
-  //     break;
-  //   }
-  // }
+    default:
+      leds[ii] = CRGB(100, 100, 0);
+      break;
+    }
+  }
   
-  // FastLED.show();
-  // testLed += 1;
-  // if (testLed > NUM_LEDS) testLed = 0;
+  FastLED.show();
+  testLed += 1;
+  if (testLed > NUM_LEDS) testLed = 0;
+
+  if (setFreqVal < 15000) {
+    setFreqVal += 200;
+    setFreq(setFreqVal);
+  }
+
+  delay(100);
+
+
+
 
   // delayMicroseconds(4*1e6*(16*200/TARGET_FREQ));
   // delay(35*2);

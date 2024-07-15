@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print20/'
+WORKING_DIR = 'proc/Print22/'
 
 if len(sys.argv) > 1 and sys.argv[1] != '-reset':
     WORKING_DIR = sys.argv[1]
@@ -11,7 +11,7 @@ if len(sys.argv) > 1 and sys.argv[1] != '-reset':
 # Overall size of box to generate path in
 SIZE_X = 180
 SIZE_Y = 100
-SIZE_Z = 180
+SIZE_Z = 60
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 4 # Offset from 0 in Z to print main body off of
@@ -85,7 +85,7 @@ MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*0.3 # Maximum XY acceleration between ea
 MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL # Radius to merge points beneath
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join
 
-PARTICLE_DRAG = 0.8 # Fraction of velocity retained across frames
+PARTICLE_DRAG = 0.6 # Fraction of velocity retained across frames
 SUPPORT_ATTRACTION_CONSTANT = 80.0 # Constant multiplier for attraction force between particles
 SUPPORT_MAX_ATTRACTION_DIST = 50.0 # DISABLED max attraction distance
 SUPPORT_BOUNDARY_FORCE_MAG = 20.0 # Force of boundary limitation, in force/mm
@@ -97,12 +97,13 @@ Z_DIFF_MAX = MARBLE_RAD*6 # Z difference of max repulsion force
 POS_DIFF_MIN = MARBLE_RAD*1.5 # min XY diff of repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3 # max XY diff of repulsion force
 
-PULL_TO_CENTER_MAG = 0.1 # Magnitude of force pulling points to target radius
+PULL_TO_CENTER_MAG = 0.4 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
 REALTIME_PLOTTING_FORCEMAGS = False
 SUPPORT_VIS = False # Output support gen visualization
 GENERATE_SUPPORTS = True
+CONNECT_LIFTS = False
 LOAD_EXISTING_PATH = True
 
 UNIVERSAL_FN = 16 # How many sides for each triangle
