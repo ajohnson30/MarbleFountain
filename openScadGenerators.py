@@ -366,9 +366,6 @@ def generateScrewPathJoins(angle):
 		supportBaseDist = np.linalg.norm(supportBasePos)
 		supportBaseAngle = np.arctan2(supportBasePos[0], supportBasePos[1])
 		supportMatchAngle = np.arctan2(supportMatchPos[0], supportMatchPos[1])
-
-		LIFT_SUPPORT_CROSSES = 5
-		LIFT_SUPPORT_SUBDIV = 11
 		
 		supportPtCnt = LIFT_SUPPORT_CROSSES * LIFT_SUPPORT_SUBDIV
 		supportPts = np.zeros((3, supportPtCnt), dtype=np.double)
@@ -376,10 +373,8 @@ def generateScrewPathJoins(angle):
 
 		angleList = np.linspace(supportBaseAngle, supportMatchAngle, int((LIFT_SUPPORT_SUBDIV-1)/2))
 		angleList = np.concatenate([angleList, np.flip(angleList[:-1])])
-		print(f"\n")
 		for angleIdx in range(len(angleList)):
 			fooAng = angleList[angleIdx]
-			print(fooAng)
 			supportPts[0, angleIdx::len(angleList)] = np.cos(fooAng) * supportBaseDist
 			supportPts[1, angleIdx::len(angleList)] = np.sin(fooAng) * supportBaseDist
 		
