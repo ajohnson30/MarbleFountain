@@ -214,8 +214,8 @@ void loop() {
   testLed += 1;
   if (testLed > NUM_LEDS) testLed = 0;
 
-  if (setFreqVal < 15000) {
-    setFreqVal += 200;
+  if (setFreqVal < 9000) {
+    setFreqVal += 100;
     setFreq(setFreqVal);
   }
 

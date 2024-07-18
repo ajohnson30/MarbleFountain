@@ -65,7 +65,7 @@ supportPoints = np.concatenate(supportAnchors+screwLoadSupportAnchors, axis=1)
 # Get list of all no-go points
 noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
 # noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
-noGoPoints[2] -= MARBLE_RAD*2.0 # Repel away only upwards at 45 degree angle
+noGoPoints[2] -= PATH_REPEL_DROP # Repel away only upwards at 45 degree angle
 
 # supportAnchorPointsConcat = np.concatenate([anchors for anchors in supportAnchors], axis=1) # get concat supportAnchors
 
@@ -106,13 +106,12 @@ if GENERATE_SUPPORTS:
 	visPath = None
 	if SUPPORT_VIS: visPath=WORKING_DIR+'vis/'
 
-	# supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
+	supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
 	# with open('tmp_support_gen.pkl', 'wb') as f:
 	# 	pkl.dump(supportColumns, f)
 	# 	exit()
-
-	with open('tmp_support_gen.pkl', 'rb') as f:
-		supportColumns = pkl.load(f)
+	# with open('tmp_support_gen.pkl', 'rb') as f:
+	# 	supportColumns = pkl.load(f)
 
 	# supportGeometry = generateSupports(supportColumns)
 	supportGeometry = generateSupportsV2(supportColumns)

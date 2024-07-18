@@ -551,7 +551,7 @@ def calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts):
 	# Calculate force magnitude based on XY diff
 	posDiffMag = np.ones_like(distance)
 	calcDistSubset = np.where(zDiff > Z_DIFF_MIN)
-	posDiffMag[calcDistSubset] = 1 - (distance[calcDistSubset] - POS_DIFF_MIN) / (POS_DIFF_MAX - POS_DIFF_MIN)
+	posDiffMag[calcDistSubset] = 1 - (distance[calcDistSubset] + interpHelper(fooCol.size, SUPPORT_SIZE_INTERP) - POS_DIFF_MIN) / (POS_DIFF_MAX - POS_DIFF_MIN)
 	posDiffMag[distance > POS_DIFF_MAX] = 0
 	
 	# Zero all forces where repel pt -> curr point slope < 45 deg
@@ -624,7 +624,7 @@ def calculateCenteringForce(fooCol, targetRadius):
 	finalForce = centerForce * radDiff * PULL_TO_CENTER_MAG * pullMag
 
 	return(finalForce)
-
+ 
 # Calculate support paths from anchor and avoid points
 def calculateSupports(anchorPts, avoidPts, visPath=None):
 	# Tracking arrays
@@ -652,6 +652,12 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 			[OUTPUT_BASE_RAD, 6*MARBLE_RAD+SCREW_RAD],
 		)
 
+		attractionFactor = np.interp(
+			currentHeight,
+			[0.0, 5.0],
+			[-1.0, 1.0],
+		)
+
 		# Iterate over existing columns to calculate motion
 		for idx in range(len(currentColumns)):
 			fooCol = currentColumns[idx]
@@ -659,7 +665,7 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 			fooCol.sumAcc[:] = 0 # Reset force
 
 			# Get list of forces applied to each column
-			attractiveForce = calculateAttractiveSupportForces(currentColumns, fooCol)
+			attractiveForce = attractionFactor*calculateAttractiveSupportForces(currentColumns, fooCol)
 			repulsiveForce = calculateRepulsivesSupportForces(currentHeight, fooCol, avoidPts)
 			boundaryForce = calculateBoundarySupportForces(fooCol)
 			centerForce = calculateCenteringForce(fooCol, targetRadius)
@@ -957,13 +963,11 @@ def generateSupportGeometry(col):
 
 	return(outerGeo, hollowGeo)
 
-
 # Generate supports from calculated columns
 def generateSupportsV2(supportCols):
 	supports = sphere(0)
 
 	baseCols = []
-	tempIter = 0
 	# Iterate through all base columns
 	for fooCol in supportCols:
 		if fooCol.mergingInto != -1:
@@ -976,9 +980,15 @@ def generateSupportsV2(supportCols):
 		hollowGeo = fooHollow
 
 		# Add hole through to bottom of base
-		rad = interpHelper(fooCol.size, SUPPORT_SIZE_INTERP)
-		hollowGeo += cylinder(BASE_THICKNESS-1e-3, rad*2, rad*2, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]).translateZ(-BASE_THICKNESS)
+		rad = interpHelper(fooCol.size, SUPPORT_HOLLOW_INTERP)
+		mergePoint = deepcopy(fooCol.posHist[-1])
+		mergePoint[2] = BASE_OF_MODEL-BASE_THICKNESS
+		hollowGeo += chain_hull()(*[
+			sphere(rad, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]),
+			sphere(rad, _fn=UNIVERSAL_FN).translate(mergePoint),
+		])
 		
+
 		# Iterate through all branches of tree
 		sameBranchPts = deepcopy(fooCol.mergedFrom)
 		while len(sameBranchPts) > 0:
@@ -987,7 +997,7 @@ def generateSupportsV2(supportCols):
 			sameBranchPts += deepcopy(nextCol.mergedFrom)
 
 			fooOuter, fooHollow = generateSupportGeometry(nextCol)
-			# outerGeo += fooOuter
+			outerGeo += fooOuter
 			hollowGeo += fooHollow
 
 			# Add outlet hole if applicable
@@ -1000,16 +1010,7 @@ def generateSupportsV2(supportCols):
 					sphere(rad, _fn=UNIVERSAL_FN).translate(mergePoint).translateZ(rad*2),
 				])
 
-
-
-		# supports += hollowGeo
-		# supports += outerGeo
 		supports += (outerGeo - hollowGeo)
-
-
-		tempIter += 1
-		if tempIter >= 4:
-			break
 
 	# Make base geometry from conv hull of base points
 	baseSpheres = []
@@ -1025,10 +1026,11 @@ def generateSupportsV2(supportCols):
 
 	# Poke holes in base for fibers
 	for fooCol in baseCols:
+		if fooCol.size <= 1:
+			continue
 		rad = interpHelper(fooCol.size, SUPPORT_HOLLOW_INTERP)
 		pt = deepcopy(fooCol.posHist[-1])
 		pt[2] = BASE_OF_MODEL - BASE_THICKNESS
-		baseAng = np.arctan2(pt[1]-SCREW_POS[1], pt[0]-SCREW_POS[0])
 
 		# baseCutout = cylinder(BASE_THICKNESS+1, rad, rad, _fn=UNIVERSAL_FN).translate(pt)
 		baseCutout = chain_hull()(*[
@@ -1036,16 +1038,65 @@ def generateSupportsV2(supportCols):
 			sphere(rad, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]),
 		])
 
-		LED_CUBE_SIZE = 5.1
+		LED_CUBE_SIZE = 5.5
 		LED_CUTOUT_H = 3
+		baseAng = np.arctan2(pt[1]-SCREW_POS[1], pt[0]-SCREW_POS[0])
 		baseCutout += cube([LED_CUBE_SIZE, LED_CUBE_SIZE, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
 		
 		baseGeo -= baseCutout
 
 	# Add vent holes
 	CUTOUT_Z = 2.0
-	ventCylinder = cylinder(CUTOUT_Z, 3.0, 1.0, _fn=UNIVERSAL_FN)
-	ventPts = np.array([deepcopy(foo.posHist[-1]) for foo in baseCols])
+	ventCylinder = cylinder(CUTOUT_Z, 2.0, 1.0, _fn=UNIVERSAL_FN)
+	ventPts = np.array([foo.posHist[-1]-SCREW_POS for foo in baseCols])
+	ventPts[:, 2] = BASE_OF_MODEL-BASE_THICKNESS
+	
+	ventGeo = sphere(0)
+	while ventPts.shape[0] > 0:
+		pointDists = np.linalg.norm(ventPts, axis=1)
+		currIdx = np.argmin(pointDists)
+		currPt = ventPts[currIdx]
+		ventPts = np.delete(ventPts, currIdx, 0)
+		firstPtNormVect = currPt/np.linalg.norm(currPt)
+
+		ventPath = [[0, 0, currPt[2]], currPt]
+		while ventPts.shape[0] > 0:
+			ptVect = ventPts-currPt
+			ptDists = np.linalg.norm(ptVect, axis=1)
+
+			ptNormVect = ptVect/np.linalg.norm(ptVect, axis=1)[:, None]
+			# vectAngles = np.arccos(np.clip(np.dot(ptNormVect, centerNormVect), -1.0, 1.0))
+			# okPts = np.where(np.abs(vectAngles) < np.pi)[0]
+
+			normSum = np.linalg.norm(ptNormVect + firstPtNormVect, axis=1)
+			# print(f"ptNormVect:{ptNormVect}")
+			# print(f"normSum:{normSum}")
+
+			# okPts = np.where(normSum > np.sqrt(2))
+			okPts = np.where(normSum > 1.8)[0]
+
+			if len(okPts) == 0:
+				break
+
+			nextIdx = okPts[np.argmin(ptDists[okPts])]
+			# nextIdx = np.argmax(normSum)
+			currPt = ventPts[nextIdx]
+			ventPath.append(currPt)
+			ventPts = np.delete(ventPts, nextIdx, 0)
+
+		ventPath.append(2*ventPath[-1])
+		ventPath[-1][2] = BASE_OF_MODEL-BASE_THICKNESS
+
+		if np.linalg.norm(ventPath[1]) > 40:
+			ventPath = ventPath[1:]
+
+		ventGeo += getShapePathSet(np.swapaxes(ventPath, 0, 1), None, ventCylinder)
+
+	ventGeo = ventGeo.translate(SCREW_POS)
+	(ventGeo).save_as_scad(WORKING_DIR + "test/vents.scad")
+	baseGeo -= ventGeo
+
+
 	for idx in range(len(ventPts)):
 		vect = deepcopy(ventPts[idx])
 		vect[2] = 0
@@ -1068,8 +1119,7 @@ def generateSupportsV2(supportCols):
 		cutout += cylinder(1.0, 12.0, 11.0, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL-BASE_THICKNESS)
 	baseGeo -= cutout.translate(SCREW_POS)
 
-	(supports + baseGeo).save_as_scad(WORKING_DIR + "TEMP.scad")
-	exit()
+	(supports + baseGeo).save_as_scad(WORKING_DIR + "test/base.scad")
 
 		# cutout += cylinder(maxHeight, 11.1, 11.1, _fn=HIGHER_RES_FN).translateZ(-maxHeight-lipThickness+BASE_OF_MODEL)
 
