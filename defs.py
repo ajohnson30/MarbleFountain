@@ -2,7 +2,8 @@ import numpy as np
 import sys
 
 GLASS_MARBLE_14mm = False
-WORKING_DIR = 'proc/Print22/'
+L_PRINT  = True
+WORKING_DIR = 'proc/Print23_smol/'
 
 if len(sys.argv) > 1 and sys.argv[1] != '-reset':
     WORKING_DIR = sys.argv[1]
@@ -12,6 +13,10 @@ if len(sys.argv) > 1 and sys.argv[1] != '-reset':
 SIZE_X = 180
 SIZE_Y = 105
 SIZE_Z = 180
+
+SIZE_X = 160
+SIZE_Y = 100
+SIZE_Z = 100
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 6 # Offset from 0 in Z to print main body off of
@@ -23,7 +28,7 @@ INITIAL_POINT_MULT_SLOPE = 1.5*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
-PATH_COUNT = 7 # Numer of paths to generate
+PATH_COUNT = 5 # Numer of paths to generate
 MIRROR_PATHS = False
 if MIRROR_PATHS:
     SIZE_X = SIZE_Y
@@ -105,15 +110,16 @@ HOLLOW_SUPPORTS = True
 SUPPORT_SIZE_INTERP = np.swapaxes([
     [1, 1.2],
     [2, 2.0],
-    [10, 4.0]
+    [7, 3.0],
+    [20, 4.0]
 ], 0, 1)
 SUPPORT_HOLLOW_INTERP = np.swapaxes([
     [1, 0.0],
-    [2, 0.8],
-    [6, 2.0],
-    [15, 3.2]
+    [2, 1.2],
+    [7, 2.2],
+    [20, 3.2]
 ], 0, 1)
-SUPPORT_BASE_RAD = 5
+SUPPORT_BASE_RAD = 3.5
 
 REALTIME_PLOTTING_FORCEMAGS = False
 

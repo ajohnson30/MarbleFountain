@@ -2,7 +2,7 @@ from os import listdir
 import subprocess as sp
 from subprocess import call
 from stl import mesh
-import time
+import datetime
 
 from defs import *
 
@@ -21,6 +21,8 @@ for f in files:
         print(cmd)
         tasks.append(sp.Popen(cmd, shell=True))
         # time.sleep(60*10)
+
+print(f"Start Time: {datetime.datetime()}")
 
 for foo in tasks:
     print(f"Waiting for {foo}")

@@ -1001,7 +1001,7 @@ def generateSupportsV2(supportCols):
 			hollowGeo += fooHollow
 
 			# Add outlet hole if applicable
-			if nextCol.size == 2:
+			if HOLLOW_SUPPORTS and nextCol.size == 2:
 				rad = interpHelper(nextCol.size, SUPPORT_HOLLOW_INTERP)
 				mergePoint = nextCol.posHist[0]				
 
@@ -1025,25 +1025,26 @@ def generateSupportsV2(supportCols):
 	baseGeo = conv_hull()(*baseSpheres)
 
 	# Poke holes in base for fibers
-	for fooCol in baseCols:
-		if fooCol.size <= 1:
-			continue
-		rad = interpHelper(fooCol.size, SUPPORT_HOLLOW_INTERP)
-		pt = deepcopy(fooCol.posHist[-1])
-		pt[2] = BASE_OF_MODEL - BASE_THICKNESS
+	if HOLLOW_SUPPORTS:
+		for fooCol in baseCols:
+			if fooCol.size <= 1:
+				continue
+			rad = interpHelper(fooCol.size, SUPPORT_HOLLOW_INTERP)
+			pt = deepcopy(fooCol.posHist[-1])
+			pt[2] = BASE_OF_MODEL - BASE_THICKNESS
 
-		# baseCutout = cylinder(BASE_THICKNESS+1, rad, rad, _fn=UNIVERSAL_FN).translate(pt)
-		baseCutout = chain_hull()(*[
-			sphere(rad, _fn=UNIVERSAL_FN).translate(pt),
-			sphere(rad, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]),
-		])
+			# baseCutout = cylinder(BASE_THICKNESS+1, rad, rad, _fn=UNIVERSAL_FN).translate(pt)
+			baseCutout = chain_hull()(*[
+				sphere(rad, _fn=UNIVERSAL_FN).translate(pt),
+				sphere(rad, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]),
+			])
 
-		LED_CUBE_SIZE = 5.5
-		LED_CUTOUT_H = 3
-		baseAng = np.arctan2(pt[1]-SCREW_POS[1], pt[0]-SCREW_POS[0])
-		baseCutout += cube([LED_CUBE_SIZE, LED_CUBE_SIZE, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
-		
-		baseGeo -= baseCutout
+			LED_CUBE_SIZE = 5.5
+			LED_CUTOUT_H = 3
+			baseAng = np.arctan2(pt[1]-SCREW_POS[1], pt[0]-SCREW_POS[0])
+			baseCutout += cube([LED_CUBE_SIZE, LED_CUBE_SIZE, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
+			
+			baseGeo -= baseCutout
 
 	# Add vent holes
 	CUTOUT_Z = 2.0
