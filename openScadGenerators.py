@@ -1053,28 +1053,28 @@ def generateSupportsV2(supportCols):
 	for fooCol in baseCols:
 		if fooCol.size <= 1:
 			continue
-		baseCutout = sphere(0)
 
+		rad = interpHelper(fooCol.size, SUPPORT_HOLLOW_INTERP)
+		pt = deepcopy(fooCol.posHist[-1])
+		pt[2] = BASE_OF_MODEL - BASE_THICKNESS
+		baseAng = np.arctan2(pt[1]-SCREW_POS[1], pt[0]-SCREW_POS[0])
+		
 		if HOLLOW_SUPPORTS:
-			rad = interpHelper(fooCol.size, SUPPORT_HOLLOW_INTERP)
-			pt = deepcopy(fooCol.posHist[-1])
-			pt[2] = BASE_OF_MODEL - BASE_THICKNESS
 
 			# baseCutout = cylinder(BASE_THICKNESS+1, rad, rad, _fn=UNIVERSAL_FN).translate(pt)
-			baseCutout += chain_hull()(*[
+			baseCutout = chain_hull()(*[
 				sphere(rad, _fn=UNIVERSAL_FN).translate(pt),
 				sphere(rad, _fn=UNIVERSAL_FN).translate(fooCol.posHist[-1]),
 			])
-
+			baseGeo -= baseCutout
 
 		if LED_CUTOUTS:
 			LED_CUBE_SIZE = 5.5
 			LED_CUTOUT_H = 1.5
-			baseAng = np.arctan2(pt[1]-SCREW_POS[1], pt[0]-SCREW_POS[0])
-			baseCutout += cube([LED_CUBE_SIZE, LED_CUBE_SIZE, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
+			baseCutout = cube([LED_CUBE_SIZE, LED_CUBE_SIZE, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
 			baseCutout += cube([LED_CUBE_SIZE*0.8, LED_CUBE_SIZE*2, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
 			
-		baseGeo -= baseCutout
+			baseGeo -= baseCutout
 
 	# Add vent holes
 	CUTOUT_Z = 1.25

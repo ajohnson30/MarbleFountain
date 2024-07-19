@@ -14,9 +14,9 @@ SIZE_X = 180
 SIZE_Y = 100
 SIZE_Z = 180
 
-# SIZE_X = 160
-# SIZE_Y = 100
-# SIZE_Z = 100
+# SIZE_X = 315
+# SIZE_Y = 185
+# SIZE_Z = 270
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 6 # Offset from 0 in Z to print main body off of
