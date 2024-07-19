@@ -2,7 +2,7 @@ from os import listdir
 import subprocess as sp
 from subprocess import call
 from stl import mesh
-import datetime
+import time
 
 from defs import *
 
@@ -22,7 +22,7 @@ for f in files:
         tasks.append(sp.Popen(cmd, shell=True))
         # time.sleep(60*10)
 
-print(f"Start Time: {datetime.datetime()}")
+print(f"Start Time: {time.localtime()}")
 
 for foo in tasks:
     print(f"Waiting for {foo}")
@@ -46,3 +46,6 @@ for f in files:
         print(f"   x:{min_x}:{max_x} ({max_x - min_x})")
         print(f"   y:{min_y}:{max_y} ({max_y - min_y})")
         print(f"   z:{min_z}:{max_z} ({max_z - min_z})")
+
+
+print(f"End Time: {time.localtime()}")

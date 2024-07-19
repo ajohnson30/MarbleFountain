@@ -16,6 +16,7 @@ from copy import deepcopy
 import pickle as pkl
 import sys
 import os
+from scipy.signal import savgol_filter
 
 from defs import *
 from shared import *
@@ -371,7 +372,7 @@ def generateScrewPathJoins(angle):
 		supportPts = np.zeros((3, supportPtCnt), dtype=np.double)
 		supportPts[2] = np.linspace(supportPath[2, 1], supportPath[2, -2], supportPtCnt)
 
-		angleList = np.linspace(supportBaseAngle, supportMatchAngle, int((LIFT_SUPPORT_SUBDIV-1)/2))
+		angleList = np.linspace(supportMatchAngle, supportBaseAngle, int((LIFT_SUPPORT_SUBDIV-1)/2)) + np.pi/PATH_COUNT
 		angleList = np.concatenate([angleList, np.flip(angleList[:-1])])
 		for angleIdx in range(len(angleList)):
 			fooAng = angleList[angleIdx]
@@ -968,11 +969,35 @@ def generateSupportsV2(supportCols):
 	supports = sphere(0)
 
 	baseCols = []
+
+	# Fix mergedFrom
+	for idx in range(len(supportCols)):
+		nextCol = supportCols[idx]
+		for nextIdx in nextCol.mergedFrom:
+			supportCols[nextIdx].mergingInto = idx
+
+	# Smooth supports
+	smoothCols = deepcopy(supportCols)
+	for idx in range(len(supportCols)):
+		nextCol = supportCols[idx]
+		if nextCol.mergingInto == -1:
+			continue
+		# Smooth out support
+		mergeCol = supportCols[nextCol.mergingInto]
+		netPosHist = np.swapaxes(np.concatenate([np.array(nextCol.posHist), np.array(mergeCol.posHist)]), 0, 1)
+		# netPosHist = np.swapaxes(nextCol.posHist, 0, 1)
+
+		for ii in range(2):
+			netPosHist[ii] = hamming_filter_1d(netPosHist[ii], 15)
+		smoothCols[idx].posHist = np.swapaxes(netPosHist, 0, 1)[:len(nextCol.posHist)]
+
+	supportCols = smoothCols
+
 	# Iterate through all base columns
 	for fooCol in supportCols:
 		if fooCol.mergingInto != -1:
 			continue
-
+		
 		baseCols.append(fooCol)
 
 		fooOuter, fooHollow = generateSupportGeometry(fooCol)
@@ -1047,8 +1072,8 @@ def generateSupportsV2(supportCols):
 			baseGeo -= baseCutout
 
 	# Add vent holes
-	CUTOUT_Z = 2.0
-	ventCylinder = cylinder(CUTOUT_Z, 2.0, 1.0, _fn=UNIVERSAL_FN)
+	CUTOUT_Z = 1.25
+	ventCylinder = cylinder(CUTOUT_Z, 4.0, 1.0, _fn=UNIVERSAL_FN)
 	ventPts = np.array([foo.posHist[-1]-SCREW_POS for foo in baseCols])
 	ventPts[:, 2] = BASE_OF_MODEL-BASE_THICKNESS
 	

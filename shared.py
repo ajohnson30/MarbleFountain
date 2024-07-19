@@ -39,7 +39,7 @@ def randomPath(ptCnt, box, pathIdx):
 				startPos = np.sin(angle)*(SCREW_RAD + PT_SPACING) + box[idx]/2
 				randPts[0] = startPos
 				randPts[-1] = startPos
-			path[idx] = np.interp(np.linspace(0, RANDOM_CNT+2, ptCnt), np.arange(RANDOM_CNT+2), randPts)
+			path[idx] = np.interp(np.linspace(0, RANDOM_CNT+1, ptCnt), np.arange(RANDOM_CNT+2), randPts)
 
 			path[idx] += 0.5 - np.random.random(len(path[idx]))
 	else:
@@ -53,7 +53,7 @@ def randomPath(ptCnt, box, pathIdx):
 
 def getPathAnchorAngle(pathIdx):
 	angle = np.pi*2*pathIdx/PATH_COUNT
-	if PATH_COUNT%2 == 0: angle += np.pi/(PATH_COUNT)
+	# if PATH_COUNT%2 == 0: angle += np.pi/(PATH_COUNT)
 	return angle
 
 # Pull towards bounding box
@@ -459,9 +459,10 @@ def preventUphillMotion(path, forceMag = 0.1):
 		zTargetMin[idx] = np.min(zVal[:idx+1])
 
 	zTargetMax = np.where(zTargetMax > zVal+zDiffAvg, zTargetMax, zVal)
-	zTargetMin = np.where(zTargetMin < zVal-zDiffAvg, zTargetMax, zVal)
+	zTargetMin = np.where(zTargetMin < zVal-zDiffAvg, zTargetMin, zVal)
 
 	zTargMaxRatio = np.linspace(0.0, 1.0, len(zVal))
+	zTargMaxRatio = zTargMaxRatio
 	zTarget = zTargMaxRatio*zTargetMax + (1.0-zTargMaxRatio)*zTargetMin
 
 	# zTarget = (zTargetMax+zTargetMin) / 2.0
@@ -554,6 +555,25 @@ def smooth_array(data, window_size):
 	smoothed_data = np.concatenate((pad_left, smoothed_data, pad_right))
 	
 	return smoothed_data
+
+def hamming_filter_1d(data, window_size):
+    if window_size % 2 == 0:
+        raise ValueError("Window size should be odd")
+    
+    # Create Hamming window
+    hamming_window = np.hamming(window_size)
+    
+    # Normalize the window
+    hamming_window /= np.sum(hamming_window)
+    
+    # Pad the input data
+    pad_width = window_size // 2
+    padded_data = np.pad(data, pad_width, mode='edge')
+    
+    # Apply the filter
+    filtered_data = np.convolve(padded_data, hamming_window, mode='valid')
+    
+    return filtered_data
 
 def max_by_absolute_value(array1, array2):
 	result = np.where(np.abs(array1) > np.abs(array2), array1, array2)

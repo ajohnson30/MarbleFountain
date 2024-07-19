@@ -56,7 +56,7 @@ targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.inte
 # Init path points
 if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl') and '-reset' not in sys.argv:
     pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
-    initialTemperature = -0.5
+    initialTemperature = -5.0
 else:
     # Generate initial path
     pathList = []
@@ -184,7 +184,7 @@ for pathIteration in range(PATH_ITERS):
 
 
         # Pull towards Z position
-        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.9*scaleFactA+0.0, 15)
+        targHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.9*scaleFactA+0.1, 15)
         maxTargHeightForce = pullTowardsTargetHeights(path, targetHeights[:path.shape[1]], 0.8, 10) # Pull beginning and end harder
         heightForceMix = np.interp(
             np.arange(path.shape[1]),
@@ -296,7 +296,7 @@ for pathIteration in range(PATH_ITERS):
                 path, repelForce, moveMult
             )
             addToPathAndSums(
-                scaleFactB * repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 30), # Avoid end points of other paths
+                scaleFactB * repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 40), # Avoid end points of other paths
                 path, repelForce, moveMult
             )
         # Repel away from center lift
@@ -330,6 +330,9 @@ for pathIteration in range(PATH_ITERS):
         path += downHillForce # Always apply at full force
         forceList.append(downHillForce)
 
+        # if pathIdx == 4:
+        #     plt.plot(downHillForce[2])
+        #     plt.show()
 
 
         # Move to set points
@@ -409,7 +412,7 @@ for pathIteration in range(PATH_ITERS):
         pathList[pathIdx] = path
 
         # Plot forces for last map
-        if pathIdx == 0:
+        if pathIdx == 4:
             if REALTIME_PLOTTING_FORCEMAGS:
                 medianForceMags = [np.max(fooMag) for fooMag in forceMags]
                 medianForceMagQueue.put({

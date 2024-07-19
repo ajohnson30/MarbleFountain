@@ -56,6 +56,7 @@ for pathIdx in range(PATH_COUNT):
 	screwLoadSupportAnchors.append(supportAnchors+SCREW_POS[:, None])
 screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 
+(screwLoadAssembly).save_as_scad(WORKING_DIR + "test/JustLiftSupports.scad")
 
 # Get list of all points which require support
 supportAnchors = [calculateSupportAnchorsForPath(path[:, ::2], rot[:, ::2]) for path, rot in zip(pathList, rotList)]
