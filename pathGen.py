@@ -48,7 +48,7 @@ targetHeights[-startPoints:] = np.flip(inputOutputSlope)
 # Interpolate rest of points
 targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.interp(
     np.linspace(0.0, 1.0, POINT_COUNT - 2*startPoints),
-    [0.0, 0.85, 1.0],
+    [0.0, 0.9, 1.0],
     [1.0, 0.1, 0.0]
 ) + startAndEndOffset
 

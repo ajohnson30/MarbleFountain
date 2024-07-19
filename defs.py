@@ -23,8 +23,8 @@ BASE_THICKNESS = 6 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 6 # distance from one point to the next
 
-PT_DROP = 0.85    # target z drop per pt
-INITIAL_POINT_MULT_SLOPE = 2.5*PT_DROP
+PT_DROP = 0.8    # target z drop per pt
+INITIAL_POINT_MULT_SLOPE = 3.0*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
@@ -40,7 +40,7 @@ RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterat
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 6 # How many random points to generate if LESS_RANDOM_INIT_PATH
+RANDOM_CNT = 8 # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay
@@ -77,7 +77,7 @@ if GLASS_MARBLE_14mm:
     PATH_RANDOMIZATION_FUNC[1, 1:] /= 2
 
 TRACK_CONTACT_ANGLE = np.pi/5 # Angle between path and contact points4
-TRACK_MAX_TILT = np.pi/5 # Max angle of tilt for track
+TRACK_MAX_TILT = np.pi/6 # Max angle of tilt for track
 SMOOTH_TILT_CNT_A = 2 # How many points to smooth each rotation points' tilt by
 SMOOTH_TILT_CNT_B = 3 # And then we do it again
 
@@ -90,7 +90,7 @@ MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*0.3 # Maximum XY acceleration between ea
 MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL # Radius to merge points beneath
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join
 
-PARTICLE_DRAG = 0.5 # Fraction of velocity retained across frames
+PARTICLE_DRAG = 0.8 # Fraction of velocity retained across frames
 SUPPORT_ATTRACTION_CONSTANT = 80.0 # Constant multiplier for attraction force between particles
 SUPPORT_MAX_ATTRACTION_DIST = 50.0 # DISABLED max attraction distance
 SUPPORT_BOUNDARY_FORCE_MAG = 20.0 # Force of boundary limitation, in force/mm
@@ -103,10 +103,11 @@ POS_DIFF_MIN = MARBLE_RAD*1.5 # min XY diff of repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3.0 # max XY diff of repulsion force
 PATH_REPEL_DROP = MARBLE_RAD*2.0 # Drop points this far in Z from center of point
 
-PULL_TO_CENTER_MAG = 0.0 # Magnitude of force pulling points to target radius
+PULL_TO_CENTER_MAG = 0.1 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-HOLLOW_SUPPORTS = True
+HOLLOW_SUPPORTS = False
+LED_CUTOUTS = True
 SUPPORT_SIZE_INTERP = np.swapaxes([
     [1, 1.2],
     [2, 1.8],
@@ -120,6 +121,15 @@ SUPPORT_HOLLOW_INTERP = np.swapaxes([
     [20, 2.2]
 ], 0, 1)
 SUPPORT_BASE_RAD = 3.5
+
+if not HOLLOW_SUPPORTS:
+    SUPPORT_SIZE_INTERP = np.swapaxes([
+        [1, 1.0],
+        [3, 2.0],
+        [15, 3.0]
+    ], 0, 1)
+
+
 
 REALTIME_PLOTTING_FORCEMAGS = False
 
