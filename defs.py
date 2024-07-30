@@ -23,8 +23,8 @@ SIZE_X = 300.00 - 20
 SIZE_Y = 198.72 - 20
 SIZE_Z = 353.28 - 50
 PT_DROP = 0.88    # target z drop per pt
-PATH_COUNT = 8 # Numer of paths to generate
-WORKING_DIR = 'proc/Print25/'
+PATH_COUNT = 12 # Numer of paths to generate
+WORKING_DIR = 'proc/Print26/'
 
 
 
@@ -161,7 +161,7 @@ UNIVERSAL_FN = 12
 HIGHER_RES_FN = 50
 
 # Screw lift
-SCREW_RAD = 12 # Center of rotation to center of marble on track
+SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 16 # mm per rev
 SCREW_RESOLUTION = 30 # pts per rev
 SCREW_SUPPORT_GROUPING = (4, 9)

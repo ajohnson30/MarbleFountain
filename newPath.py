@@ -124,6 +124,60 @@ elif 'BETTER' in sys.argv:
                 
 
 
+# Generate better starting points maybe
+elif 'WIDE' in sys.argv:
+    pathList = []
+
+    for pathIdx in range(PATH_COUNT):
+        path = np.zeros((3, POINT_COUNT), dtype=np.double)
+        angle = getPathAnchorAngle(pathIdx)
+
+        # Sort of random points
+        for idx in range(3):
+            if idx < 2:
+                randPts = np.random.random(RANDOM_CNT+2)
+
+                # Random points only in outside 1/4 of bounding box
+                boxFrac = 1/4
+
+                randPts *= BOUNDING_BOX[idx] * boxFrac
+                randPts[np.where(randPts > BOUNDING_BOX[idx] * boxFrac/2)] += BOUNDING_BOX[idx] * boxFrac
+                # Loop setting the start and end positions + preventing double crossings
+                for ii in range(10):
+                    # Do not cross center and back instantly
+                    randPts[1:-1] = np.where(
+                        (randPts[2:]-BOUNDING_BOX[idx]/2)*(randPts[:-2]-BOUNDING_BOX[idx]/2) < 0, 
+                        randPts[1:-1],
+                        np.random.random(RANDOM_CNT)*BOUNDING_BOX[idx], 
+                    )
+
+                    # Set first and last point
+                    if idx == 0:
+                        startPos = np.cos(angle)*(SCREW_RAD + PT_SPACING) + BOUNDING_BOX[idx]/2
+                        pos2 = np.cos(angle)*(SCREW_RAD + PT_SPACING*20) + BOUNDING_BOX[idx]/2
+                    elif idx == 1:
+                        startPos = np.sin(angle)*(SCREW_RAD + PT_SPACING) + BOUNDING_BOX[idx]/2
+                        pos2 = np.sin(angle)*(SCREW_RAD + PT_SPACING*20) + BOUNDING_BOX[idx]/2
+                    
+                    randPts[0] = startPos
+                    randPts[1] = pos2
+                    randPts[-1] = startPos
+                    randPts[-2] = pos2
+
+            # idx = 3, load set heights
+            else:
+                randPts = np.linspace(SIZE_Z, 0, RANDOM_CNT+2)
+
+
+
+            path[idx] = np.interp(np.linspace(0, RANDOM_CNT+1, POINT_COUNT), np.arange(RANDOM_CNT+2), randPts)
+            path[idx] += 0.5 - np.random.random(len(path[idx]))
+        
+        # path[2, :] = targetHeights
+        pathList.append(path)
+                
+
+
 else:
     # Default gen
     pathList = []
