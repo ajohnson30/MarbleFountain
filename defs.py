@@ -15,16 +15,16 @@ PATH_COUNT = 6 # Numer of paths to generate
 WORKING_DIR = 'proc/Print24/'
 
 
-# SIZE_X = 315
-# SIZE_Y = 185
-# SIZE_Z = 270
+# # SIZE_X = 315
+# # SIZE_Y = 185
+# # SIZE_Z = 270
 
-SIZE_X = 300.00 - 20
-SIZE_Y = 198.72 - 20
-SIZE_Z = 353.28 - 50
-PT_DROP = 0.88    # target z drop per pt
-PATH_COUNT = 12 # Numer of paths to generate
-WORKING_DIR = 'proc/Print26/'
+# SIZE_X = 300 - 20
+# SIZE_Y = 200 - 20
+# SIZE_Z = 350 - 50
+# PT_DROP = 0.88    # target z drop per pt
+# PATH_COUNT = 12 # Numer of paths to generate
+# WORKING_DIR = 'proc/Print26/'
 
 
 
