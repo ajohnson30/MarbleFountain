@@ -3,32 +3,44 @@ import sys
 
 GLASS_MARBLE_14mm = False
 L_PRINT  = True
-WORKING_DIR = 'proc/Print24/'
 
-if len(sys.argv) > 1 and sys.argv[1] != '-reset':
-    WORKING_DIR = sys.argv[1]
 
 
 # Overall size of box to generate path in
 SIZE_X = 180
 SIZE_Y = 100
 SIZE_Z = 180
+PT_DROP = 0.8    # target z drop per pt
+PATH_COUNT = 6 # Numer of paths to generate
+WORKING_DIR = 'proc/Print24/'
+
 
 # SIZE_X = 315
 # SIZE_Y = 185
 # SIZE_Z = 270
+
+SIZE_X = 300.00 - 20
+SIZE_Y = 198.72 - 20
+SIZE_Z = 353.28 - 50
+PT_DROP = 0.88    # target z drop per pt
+PATH_COUNT = 8 # Numer of paths to generate
+WORKING_DIR = 'proc/Print25/'
+
+
+
+if len(sys.argv) > 1 and sys.argv[1] != '-reset':
+    WORKING_DIR = sys.argv[1]
+
 
 BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 6 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 6 # distance from one point to the next
 
-PT_DROP = 0.8    # target z drop per pt
 INITIAL_POINT_MULT_SLOPE = 3.0*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
-PATH_COUNT = 6 # Numer of paths to generate
 MIRROR_PATHS = False
 if MIRROR_PATHS:
     SIZE_X = SIZE_Y
@@ -40,7 +52,7 @@ RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterat
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 8 # How many random points to generate if LESS_RANDOM_INIT_PATH
+RANDOM_CNT = 6 # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay

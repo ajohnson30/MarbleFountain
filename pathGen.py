@@ -36,6 +36,11 @@ else:
         highest_iteration = max([int(os.path.basename(f).split('.')[0]) for f in existing_files])
         pathDumpIter = highest_iteration + 1
 
+print(f"SIZE_X:{SIZE_X}")
+print(f"SIZE_Y:{SIZE_Y}")
+print(f"SIZE_Z:{SIZE_Z}")
+
+
 startPoints = 3
 targetHeights = np.zeros(POINT_COUNT, dtype=np.double)
 # Set initial points

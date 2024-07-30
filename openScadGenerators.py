@@ -1072,7 +1072,7 @@ def generateSupportsV2(supportCols):
 			LED_CUBE_SIZE = 5.5
 			LED_CUTOUT_H = 1.5
 			baseCutout = cube([LED_CUBE_SIZE, LED_CUBE_SIZE, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
-			baseCutout += cube([LED_CUBE_SIZE*0.8, LED_CUBE_SIZE*2, LED_CUTOUT_H]).translate([-LED_CUBE_SIZE/2, -LED_CUBE_SIZE/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
+			baseCutout += cube([LED_CUBE_SIZE*0.8, LED_CUBE_SIZE*2, LED_CUTOUT_H]).translate([-(LED_CUBE_SIZE*0.8)/2, -(LED_CUBE_SIZE*2)/2, 0]).rotateZ(baseAng*180/np.pi).translate(pt)
 			
 			baseGeo -= baseCutout
 
