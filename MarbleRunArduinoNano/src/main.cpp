@@ -137,7 +137,7 @@ void setup() {
 
   // Set driver parameters
   driver.toff(5);                 // Enables driver in software
-  driver.rms_current(300);        // Set motor RMS current (default 600)
+  driver.rms_current(600);        // Set motor RMS current (default 600)
   driver.microsteps(256);          // Set microsteps 
 
   driver.en_pwm_mode(true);       // Toggle stealthChop on TMC2130/2160/5130/5160
@@ -214,7 +214,7 @@ void loop() {
   testLed += 1;
   if (testLed > NUM_LEDS) testLed = 0;
 
-  if (setFreqVal < 80000) {
+  if (setFreqVal < 50000) {
     setFreqVal += 500;
     setFreq(setFreqVal);
   }

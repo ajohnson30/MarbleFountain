@@ -9,22 +9,28 @@ L_PRINT  = True
 # Overall size of box to generate path in
 SIZE_X = 180
 SIZE_Y = 100
-SIZE_Z = 180
+SIZE_Z = 100
 PT_DROP = 0.8    # target z drop per pt
-PATH_COUNT = 6 # Numer of paths to generate
-WORKING_DIR = 'proc/Print24/'
+PATH_COUNT = 3 # Numer of paths to generate
+WORKING_DIR = 'proc/smallTest/'
 
 
 # # SIZE_X = 315
 # # SIZE_Y = 185
 # # SIZE_Z = 270
 
-# SIZE_X = 300 - 20
-# SIZE_Y = 200 - 20
-# SIZE_Z = 350 - 50
-# PT_DROP = 0.88    # target z drop per pt
-# PATH_COUNT = 12 # Numer of paths to generate
-# WORKING_DIR = 'proc/Print26/'
+SIZE_X = 350 - 20
+SIZE_Y = 200 - 20
+SIZE_Z = 353.28 - 50
+PT_DROP = 0.8    # target z drop per pt
+PATH_COUNT = 8 # Numer of paths to generate
+WORKING_DIR = 'proc/Print28/'
+
+
+# PT_DROP = 0.8    # target z drop per pt
+# PATH_COUNT = 8 # Numer of paths to generate
+# GLASS_MARBLE_14mm = True
+# WORKING_DIR = 'proc/Print29_GlassMarble/'
 
 
 
@@ -78,18 +84,26 @@ LOCKED_PT_CNT = 5 # Points locked in a straight line as part of the initial path
 
 # Track defs
 MARBLE_RAD = 6.3/2 # Radius of marble
-TRACK_RAD = 1.2 # Radius of standard marble support section
+TRACK_RAD = 1.0 # Radius of standard marble support section
 
 if GLASS_MARBLE_14mm:
     PT_SPACING = 10.0
     MARBLE_RAD = 7.0
     TRACK_RAD = 1.5
-    PATH_COUNT = 2
+    PATH_COUNT = 4
     PT_DROP = 0.8
-    PATH_RANDOMIZATION_FUNC[1, 1:] /= 2
 
 TRACK_CONTACT_ANGLE = np.pi/5 # Angle between path and contact points4
 TRACK_MAX_TILT = np.pi/6 # Max angle of tilt for track
+
+END_RAIL_PTS = 36 # How many points to start transitioning to final track
+END_RAIL_TRANSITION = 10 # How many points take to transition to the final track
+END_RAIL_GUIDE_TILT = np.pi/6 # What angle to tilt the guide rail geometry to for the end of the path
+END_RAIL_GUIDE_MARGIN = 0.5 # Additional tolerancing spacing of guide rails 
+END_RAIL_CONTACT_ANGLE = np.pi/3 # Contact angle for base rail at the end of the path
+END_RAIL_CONTACT_INIT_MARGIN = 0.5 # Additional spacing at start of initial base rail to help smooth transition
+
+
 SMOOTH_TILT_CNT_A = 2 # How many points to smooth each rotation points' tilt by
 SMOOTH_TILT_CNT_B = 3 # And then we do it again
 
@@ -99,7 +113,7 @@ TRACK_SUPPORT_MAX_RAD = 2.2 # Maximum support radius
 SUPPORT_LAYER_HEIGHT = 0.5 # Layer height
 MAX_PARTICLE_VEL = SUPPORT_LAYER_HEIGHT*2.0 # Maximum XY motion between each layer
 MAX_PARTICLE_ACC = SUPPORT_LAYER_HEIGHT*0.3 # Maximum XY acceleration between each layer (except in case of emergency to avoid collision)
-MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL # Radius to merge points beneath
+MERGE_RAD = MAX_PARTICLE_VEL*MAX_PARTICLE_VEL / 2 # Radius to merge points beneath, set to 1/10 to encourage supports to swirl
 MERGE_SMOOTH_PTS = 8 # How many points to start resizing column before join
 
 PARTICLE_DRAG = 0.8 # Fraction of velocity retained across frames
@@ -115,11 +129,16 @@ POS_DIFF_MIN = MARBLE_RAD*1.5 # min XY diff of repulsion force
 POS_DIFF_MAX = MARBLE_RAD*3.0 # max XY diff of repulsion force
 PATH_REPEL_DROP = MARBLE_RAD*2.0 # Drop points this far in Z from center of point
 
-PULL_TO_CENTER_MAG = 0.1 # Magnitude of force pulling points to target radius
+PULL_TO_CENTER_MAG = 0.2 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-HOLLOW_SUPPORTS = False
-LED_CUTOUTS = True
+REALTIME_PLOTTING_FORCEMAGS = False
+
+GENERATE_SUPPORTS = True # Actually generate supports
+HOLLOW_SUPPORTS = False # Hollow out supports (to put lights in)
+LED_CUTOUTS = False # Add cutouts to put LEDs in
+SUPPORT_VIS = False # Output support gen visualization
+
 SUPPORT_SIZE_INTERP = np.swapaxes([
     [1, 1.2],
     [2, 1.8],
@@ -141,16 +160,11 @@ if not HOLLOW_SUPPORTS:
         [15, 3.0]
     ], 0, 1)
 
-
-
-REALTIME_PLOTTING_FORCEMAGS = False
-
-GENERATE_SUPPORTS = True
-SUPPORT_VIS = True # Output support gen visualization
-
 CONNECT_LIFTS = True
-LIFT_SUPPORT_CROSSES = 3
-LIFT_SUPPORT_SUBDIV = 7
+LIFT_SUPPORT_PTS = 51
+LIFT_SUPPORT_DIST = TRACK_RAD*3
+LIFT_SUPPORT_CROSSES = 16
+LIFT_SUPPORT_SUBDIV = 10
 LOAD_EXISTING_PATH = True
 
 # How many sides for each circle
@@ -162,7 +176,7 @@ HIGHER_RES_FN = 50
 
 # Screw lift
 SCREW_RAD = 18 # Center of rotation to center of marble on track
-SCREW_PITCH = 16 # mm per rev
+SCREW_PITCH = 24 # mm per rev
 SCREW_RESOLUTION = 30 # pts per rev
 SCREW_SUPPORT_GROUPING = (4, 9)
 SCREW_OUTER_TRACK_DIST = 0.5 # How far out to place the bottom rail

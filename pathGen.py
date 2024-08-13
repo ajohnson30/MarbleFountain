@@ -62,7 +62,7 @@ targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.inte
 if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl') and '-reset' not in sys.argv:
     pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
     initialTemperature = -5.0
-    # initialTemperature = 2.0
+    initialTemperature = 5.0
 else:
     # Generate initial path
     pathList = []

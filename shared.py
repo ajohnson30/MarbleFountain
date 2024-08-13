@@ -23,9 +23,6 @@ def randomPath(ptCnt, box, pathIdx):
 
 	angle = getPathAnchorAngle(pathIdx)
 	
-	
-
-
 	if LESS_RANDOM_INIT_PATH:
 		# Sort of random points
 		for idx in range(3):
@@ -677,6 +674,13 @@ def calculatePathRotations(path, screwJoinAngle=None):
 
 	# Limit max rotation
 	currTilts = np.clip(currTilts, -TRACK_MAX_TILT, TRACK_MAX_TILT)
+
+	# Reduce tilts for final points
+	currTilts *= np.interp(
+		np.arange(currTilts.shape[0]),
+		[0.0, currTilts.shape[0]-END_RAIL_PTS, currTilts.shape[0]-END_RAIL_PTS+END_RAIL_TRANSITION],
+		[1.0, 1.0, 0.0]
+	)
 
 	# # Reduce initial tilts
 	# ZERO_PTS = LOCKED_PT_CNT*2

@@ -37,14 +37,20 @@ if GLASS_MARBLE_14mm:
 rotList = [calculatePathRotations(pathList[pathIdx], getPathAnchorAngle(pathIdx)) for pathIdx in range(len(pathList))]
 
 outputAssembly = sphere(0)
+pathSupportPoints = []
 
 # # Generate actual path geometry
 for path, rot in zip(pathList, rotList):
 	# outputAssembly += generateTrackFromPath(path, rot)
 	# outputAssembly += generateTrackFromPath(path[:, :], rot[:, :])
-	outputAssembly += generateTrackFromPathSubdiv(path[:, :], rot[:, :])
+	tracks, supports = generateTrackFromPathSubdiv(path[:, :], rot[:, :])
+	outputAssembly += tracks
+	pathSupportPoints += [np.swapaxes(supports, 0, 1)]
 
 (outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")
+
+# exit()
+
 
 # Add path sections to support screw lift
 screwLoadAssembly = sphere(0)
@@ -56,12 +62,14 @@ for pathIdx in range(PATH_COUNT):
 	screwLoadSupportAnchors.append(supportAnchors+SCREW_POS[:, None])
 screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
 
+(screwLoadAssembly + outputAssembly).save_as_scad(WORKING_DIR + "test/FullPath.scad")
+
 (screwLoadAssembly).save_as_scad(WORKING_DIR + "test/JustLiftSupports.scad")
 
 # Get list of all points which require support
-supportAnchors = [calculateSupportAnchorsForPath(path[:, ::2], rot[:, ::2]) for path, rot in zip(pathList, rotList)]
+# supportAnchors = [calculateSupportAnchorsForPath(path[:, ::2], rot[:, ::2]) for path, rot in zip(pathList, rotList)]
 
-supportPoints = np.concatenate(supportAnchors+screwLoadSupportAnchors, axis=1)
+supportPoints = np.concatenate([*pathSupportPoints, *screwLoadSupportAnchors], axis=1)
 
 # Get list of all no-go points
 noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
@@ -100,8 +108,6 @@ rotatingScrew = generateCenterScrewRotatingPart()
 rotatingScrew = rotatingScrew.translate(SCREW_POS)
 
 
-(screwLoadAssembly + outputAssembly).save_as_scad(WORKING_DIR + "test/FullPath.scad")
-
 # Generate supports
 if GENERATE_SUPPORTS:
 	visPath = None
@@ -118,16 +124,15 @@ if GENERATE_SUPPORTS:
 	supportGeometry = generateSupportsV2(supportColumns)
 else:
 	supportGeometry = sphere(0)
-
-	supportGeometry = getShapePathSet(supportPoints, None, sphere(1.5), returnIndividual=True)
+# 	supportGeometry = getShapePathSet(supportPoints, None, sphere(1.5), returnIndividual=True)
 
 
 # Generate base plate connections
 
-# Visualize all support and no-go points
-if False:
-	for pt in np.swapaxes(supportPoints, 0, 1):
-		outputAssembly += sphere(2).translate(pt)
+# # Visualize all support and no-go points
+# if not GENERATE_SUPPORTS:
+# 	for pt in np.swapaxes(supportPoints, 0, 1):
+# 		outputAssembly += sphere(2).translate(pt)
 
 # Show no go points
 noGoDisplay = sphere(0)
