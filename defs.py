@@ -30,6 +30,9 @@ WORKING_DIR = 'proc/Print28/'
 # PT_DROP = 0.8    # target z drop per pt
 # PATH_COUNT = 8 # Numer of paths to generate
 # GLASS_MARBLE_14mm = True
+# SIZE_X = 320 - 20
+# SIZE_Y = 200 - 40
+# SIZE_Z = 353.28 - 65
 # WORKING_DIR = 'proc/Print29_GlassMarble/'
 
 
@@ -86,15 +89,20 @@ LOCKED_PT_CNT = 5 # Points locked in a straight line as part of the initial path
 MARBLE_RAD = 6.3/2 # Radius of marble
 TRACK_RAD = 1.0 # Radius of standard marble support section
 
-if GLASS_MARBLE_14mm:
-    PT_SPACING = 10.0
-    MARBLE_RAD = 7.0
-    TRACK_RAD = 1.5
-    PATH_COUNT = 4
-    PT_DROP = 0.8
-
 TRACK_CONTACT_ANGLE = np.pi/5 # Angle between path and contact points4
 TRACK_MAX_TILT = np.pi/6 # Max angle of tilt for track
+
+if GLASS_MARBLE_14mm:
+    # PT_SPACING = 10.0
+    MARBLE_RAD = 7.0
+    TRACK_RAD = 1.5
+    TRACK_SUPPORT_RAD = 1.5
+    PATH_COUNT = 4
+    PT_DROP = 0.8
+    BASE_OF_MODEL = -25
+
+    TRACK_MAX_TILT = np.pi/10 # Max angle of tilt for track
+
 
 END_RAIL_PTS = 36 # How many points to start transitioning to final track
 END_RAIL_TRANSITION = 10 # How many points take to transition to the final track

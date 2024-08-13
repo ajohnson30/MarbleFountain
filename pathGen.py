@@ -62,7 +62,7 @@ targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.inte
 if LOAD_EXISTING_PATH and os.path.exists(WORKING_DIR+'path.pkl') and '-reset' not in sys.argv:
     pathList = pkl.load(open(WORKING_DIR+'path.pkl', 'rb'))
     initialTemperature = -5.0
-    initialTemperature = 5.0
+    # initialTemperature = 5.0
 else:
     # Generate initial path
     pathList = []
@@ -161,7 +161,7 @@ for pathIteration in range(PATH_ITERS):
             randNoiseFactor = np.clip(pathTempList[pathIdx], 0.0, np.inf)
             moveMult = (10.0 + np.clip(pathTempList[pathIdx], -10.0, 0.0)) / 10.0
 
-            scaleFactA = np.interp(pathTempList[pathIdx], [0.0, 2.0, 10.0], [0.0, 0.1, 1.0])
+            scaleFactA = np.interp(pathTempList[pathIdx], [0.0, 2.0, 5.0], [0.0, 0.1, 1.0])
             scaleFactB = np.interp(pathTempList[pathIdx], [2.0, 10.0, 15.0], [1.0, 0.1, 0.05])
             scaleFactC = np.interp(pathTempList[pathIdx], [-0.5, 0.0, 2.0], [1.0, 0.6, 0.0])
         else:
@@ -294,7 +294,7 @@ for pathIteration in range(PATH_ITERS):
             if pathIdx == cmpIdx: continue
 
             absoluteMinPathForce = scaleFactB * repelPoints(path, pathList[cmpIdx], 5.0, ABSOLUTE_MIN_PT_DIST*2.0) # Absolute required distance between points, only inpacts Z
-            # absoluteMinPathForce[:2] /= 1 + 4*scaleFactB
+            absoluteMinPathForce[:2] /= 1 + 1*scaleFactB
             addToPathAndSums(absoluteMinPathForce, path, repelForce, moveMult)
             
             addToPathAndSums(
@@ -305,9 +305,15 @@ for pathIteration in range(PATH_ITERS):
                 scaleFactB * repelPoints(path, pathList[cmpIdx][:, [0, -1]], 2.0, 40), # Avoid end points of other paths
                 path, repelForce, moveMult
             )
+
+
+        addToPathAndSums(
+            scaleFactA * repelPoints(path, path[:, [0, -1]], 5.0, 60), # Avoid end points of own paths at first
+            path, repelForce, moveMult
+        )
         # Repel away from center lift
         addToPathAndSums(
-            repelPoints(path, centerPoints, 4.0, 6*MARBLE_RAD+SCREW_RAD),
+            repelPoints(path, centerPoints, 4.0, 20+SCREW_RAD),
             path, repelForce, moveMult
         )
         forceList.append(repelForce)
@@ -418,7 +424,7 @@ for pathIteration in range(PATH_ITERS):
         pathList[pathIdx] = path
 
         # Plot forces for last map
-        if pathIdx == 4:
+        if pathIdx%4 == 0:
             if REALTIME_PLOTTING_FORCEMAGS:
                 medianForceMags = [np.max(fooMag) for fooMag in forceMags]
                 medianForceMagQueue.put({

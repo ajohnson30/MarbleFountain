@@ -468,7 +468,7 @@ def generateTrackFromPathSubdiv(path, rotations):
 	trackToPathDist = MARBLE_RAD + TRACK_RAD
 		
 	# Calculate tall and short track profiles
-	shortRail = linear_extrude(0.2)(circle(TRACK_SUPPORT_RAD, _fn=UNIVERSAL_FN)).rotate([90, 0, 90])
+	shortRail = linear_extrude(0.2)(circle(TRACK_RAD, _fn=UNIVERSAL_FN)).rotate([90, 0, 90])
 
 	# Generate circular profile
 	angleList = np.linspace(0.0, 2*np.pi, UNIVERSAL_FN)
