@@ -186,14 +186,19 @@ def generateCenterScrewRotatingPart():
 
 	baseInsideRailPath[:, 0] = bottomRailPath[:, intersectionIdx] # Set starting point to intersection
 
-
 	outputScrew += getShapePathSet(baseInsideRailPath, None, railSphere)
 
-	# Add center shaft
+	# # Add center shaft
 	maxSupportHeight = np.max(insideRailPath[2]) - SCREW_RAD
-	outputScrewSupports = cylinder(SCREW_RAD*2, SCREW_RAD*0.8, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
-	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	# outputScrewSupports = cylinder(SCREW_RAD*2, SCREW_RAD*0.8, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	# outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
+	# Add cylinder to prevent slot hopping
+	slotCylinderRad = SCREW_RAD-MARBLE_RAD
+	slotCylinderHeight = 40
+	outputScrewSupports = cylinder(slotCylinderHeight, slotCylinderRad, slotCylinderRad, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	outputScrewSupports += cylinder(5, slotCylinderRad, TRACK_RAD, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL + slotCylinderHeight)
+	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
 	# # Supports
 	if GENERATE_SUPPORTS:
@@ -206,8 +211,9 @@ def generateCenterScrewRotatingPart():
 	if MOTOR_TYPE == 'SMALL_DC':
 		outputScrewSupports -= (cylinder(12, 1.5, 1.5, _fn=HIGHER_RES_FN) & cube([10, 10, 8]).translate([1.5-2.4, -5, 0])).translateZ(BASE_OF_MODEL-2)
 	elif MOTOR_TYPE == 'NEMA17':
+		# outputScrewSupports -= (cylinder(20.0, 2.55, 2.55, _fn=HIGHER_RES_FN) & cube([1.5, 2, 10]).translate([2.0, -1, 0])).translateZ(BASE_OF_MODEL-2)
 		outputScrewSupports -= (cylinder(20.0, 2.55, 2.55, _fn=HIGHER_RES_FN)).translateZ(BASE_OF_MODEL-2)
-
+		outputScrewSupports += cube([2, 2, 10]).translate([2.2, -1, BASE_OF_MODEL]).rotateZ(30) # Keyed shaft
 
 	# MarblePath for viz
 	if False:
@@ -260,7 +266,7 @@ def generateScrewPathJoins(angle):
 	entryRad = netRad+TRACK_RAD/4
 
 	# Lower part of semicircular feature
-	bottomAngles = np.linspace(-np.pi/2, 0, PT_CNT)
+	bottomAngles = np.linspace(-END_RAIL_CONTACT_ANGLE, 0, PT_CNT)
 	railPath[1, 1:PT_CNT+1] = entryRad*np.cos(bottomAngles)
 	railPath[2, 1:PT_CNT+1] = entryRad*np.sin(bottomAngles)
 
@@ -278,6 +284,17 @@ def generateScrewPathJoins(angle):
 	rightRail = deepcopy(railPath)
 	rightRail[1] *= -1
 	outputGeometry += getShapePathSet(rightRail, None, railSphere)
+
+	# Fill gap in semi circle
+	gapPath = np.zeros((3, PT_CNT+1))
+	gapPath[0] = vertRailDistFromSpiral
+	bottomAngles = np.linspace(-END_RAIL_CONTACT_ANGLE, -np.pi/2, PT_CNT)
+	gapPath[1, :PT_CNT] = entryRad*np.cos(bottomAngles)
+	gapPath[2, :PT_CNT] = entryRad*np.sin(bottomAngles)
+	gapPath[2, -1] = BASE_OF_MODEL
+	outputGeometry += getShapePathSet(deepcopy(gapPath), None, railSphere)
+	gapPath[1] *= -1
+	outputGeometry += getShapePathSet(deepcopy(gapPath), None, railSphere)
 
 	# Add legs
 	legPath = np.zeros((3, 4))
@@ -301,26 +318,27 @@ def generateScrewPathJoins(angle):
 		endSideMate[:, idx] = railPath[:, 0]
 	for idx in [1, 2, 4]:
 		endSideMate[:, idx] = railPath[:, 1]
-	
-	endSideMate[1, 0] = netRad + END_RAIL_GUIDE_MARGIN # Match outside rail
-	endSideMate[2, 0] = INITIAL_POINT_MULT_SLOPE # Match outside rail
 
-	endSideMate[1:, 1] += entryRad # Match input circle
-	endSideMate[1:, 2] += netRad*1.2 # Set base points with slight camber
+	# END_RAIL_GUIDE_CONTACT_ANGLE
+	# END_RAIL_GUIDE_TILT
+	endSideMate[1, 0] = np.cos(END_RAIL_GUIDE_CONTACT_ANGLE)*(netRad + END_RAIL_GUIDE_MARGIN) # Match outside rail
+	endSideMate[2, 0] = -np.sin(END_RAIL_GUIDE_CONTACT_ANGLE)*(netRad + END_RAIL_GUIDE_MARGIN) + INITIAL_POINT_MULT_SLOPE # Match outside rail
+
+	endSideMate[1:, 1] = railPath[1:, -2]
+	endSideMate[1:, 2] += netRad*0.8 # Set base points with slight camber
 	endSideMate[2, 2] = BASE_OF_MODEL
 
 
-	endSideMate[1, 3] = netRad + END_RAIL_GUIDE_MARGIN # Match outside rail support point
-	endSideMate[2, 3] = INITIAL_POINT_MULT_SLOPE # Match outside rail support point
+	endSideMate[1, 3] = np.cos(END_RAIL_GUIDE_TILT)*(TRACK_RAD) + np.cos(END_RAIL_GUIDE_CONTACT_ANGLE)*(netRad + END_RAIL_GUIDE_MARGIN) # Match outside rail support point
+	endSideMate[2, 3] = -np.sin(END_RAIL_GUIDE_TILT)*(TRACK_RAD) + -np.sin(END_RAIL_GUIDE_CONTACT_ANGLE)*(netRad + END_RAIL_GUIDE_MARGIN) + INITIAL_POINT_MULT_SLOPE # Match outside rail support point
 	endSideMate[1, 3] += TRACK_SUPPORT_RAD*2*np.sin(END_RAIL_GUIDE_TILT)
 	endSideMate[2, 3] -= TRACK_SUPPORT_RAD*2*np.cos(END_RAIL_GUIDE_TILT)
-	endSideMate[1:, 4] += entryRad # Match input circle
+	endSideMate[1:, 4] = endSideMate[1:, 1] # Match input circle
 
 	# Save, mirror, save
-	outputGeometry += getShapePathSet(endSideMate, None, railSphere)
-	endSideMate = deepcopy(endSideMate)
+	outputGeometry += getShapePathSet(deepcopy(endSideMate), None, railSphere)
 	endSideMate[1] *= -1
-	outputGeometry += getShapePathSet(endSideMate, None, railSphere)
+	outputGeometry += getShapePathSet(deepcopy(endSideMate), None, railSphere)
 
 
 	# Add top loop
@@ -396,7 +414,11 @@ def generateScrewPathJoins(angle):
 		supportMatchAngle = np.arctan2(supportMatchPos[0], supportMatchPos[1])
 		leftSupportBaseAngle = np.arctan2(supportBasePos[0], -supportBasePos[1])
 
-		for matchAngle in [supportMatchAngle, leftSupportBaseAngle]: # Cross supports between adjacent support columns
+		if SOLID_WALL_BETWEEN_LIFTS:
+			supportList = [leftSupportBaseAngle]
+		else:
+			supportList = [supportMatchAngle, leftSupportBaseAngle]
+		for matchAngle in supportList: # Cross supports between adjacent support columns
 			supportPtCnt = LIFT_SUPPORT_CROSSES * LIFT_SUPPORT_SUBDIV
 			supportPts = np.zeros((3, supportPtCnt), dtype=np.double)
 			supportPts[2] = np.linspace(supportPath[2, 1], supportPath[2, -2], supportPtCnt)
@@ -420,7 +442,101 @@ def generateScrewPathJoins(angle):
 			supportPts_right[1] *= -1
 			outputGeometry += getShapePathSet(supportPts_right, None, railSphere)
 		
+	# Add supporting connections to adjacent path
+	if SOLID_WALL_BETWEEN_LIFTS:
+		xPt = vertRailDistFromSpiral + SCREW_RAD
 
+		# PT_CNT = 1
+
+		zPts = np.concatenate([
+			[BASE_OF_MODEL],
+			np.linspace(0, distMM, PT_CNT), 
+			[SIZE_Z + entryRad*np.sin(-TRACK_CONTACT_ANGLE)]
+		])
+
+		yPts = np.concatenate([
+			[entryRad],
+			(np.cos(np.linspace(0, np.pi, PT_CNT))+1)/2 * (entryRad-vertRailSideOffset) + vertRailSideOffset,
+			[vertRailSideOffset]
+		])
+
+		supportBaseDist = np.linalg.norm([xPt, yPts[-1], 0.0])
+		# supportBaseDist = SCREW_RAD
+
+		baseAngles = []
+		matchAngles = []
+		# XYZ Position of neighboring support
+		for y, z in zip(yPts, zPts):
+			supportBasePos = [xPt, y, z]
+			baseAngles.append(np.arctan2(supportBasePos[0], supportBasePos[1]))
+
+			supportMatchPos = pf.doRotationMatrixes([xPt, -y, z], [0, 0, 2*np.pi/PATH_COUNT])
+			matchAngles.append(np.arctan2(supportMatchPos[0], supportMatchPos[1]))
+
+		# Bad code bc sleepy again :(
+		interpPoints = 4
+		def rotateBasePtToAngAndZ(z, ang): 
+			# return railSphere.translate(pf.doRotationMatrixes([supportBaseDist, 0.0, z], [0, 0, ang]))
+			return railSphere.translate([supportBaseDist*np.sin(ang), supportBaseDist*np.cos(ang), z])
+
+		fillGeometry = sphere(0)
+		for idx in range(len(baseAngles)-1):
+			lowerAngleSet = np.linspace(baseAngles[idx], matchAngles[idx], interpPoints)
+			upperAngleSet = np.linspace(baseAngles[idx+1], matchAngles[idx+1], interpPoints)
+
+
+			for angIdx in range(interpPoints-1):
+				cornerSpheres = deepcopy([
+					rotateBasePtToAngAndZ(zPts[idx], lowerAngleSet[angIdx]),
+					rotateBasePtToAngAndZ(zPts[idx], lowerAngleSet[angIdx+1]),
+					rotateBasePtToAngAndZ(zPts[idx+1], upperAngleSet[angIdx]),
+					rotateBasePtToAngAndZ(zPts[idx+1], upperAngleSet[angIdx+1]),
+				])
+				fillGeometry += conv_hull()(*cornerSpheres)
+
+		fillGeometry = fillGeometry.translateX(-SCREW_RAD)
+
+		outputGeometry += fillGeometry
+		# for y, z in zip(yPts, zPts):
+		# 	outputGeometry += sphere(3).translate([xPt, y, z])
+		
+		# # XYZ Position of this lifts support
+		# supportBasePos = [vertRailDistFromSpiral+LIFT_SUPPORT_DIST+SCREW_RAD, vertRailSideOffset, 0]
+		# # XYZ Position of neighboring support
+		# supportMatchPos = pf.doRotationMatrixes([vertRailDistFromSpiral+SCREW_RAD+LIFT_SUPPORT_DIST, -vertRailSideOffset, 0], [0, 0, 2*np.pi/PATH_COUNT])
+
+		# # Get distance from center of to help space points
+		# supportBaseDist = np.linalg.norm(supportBasePos)
+		
+		# # Get angles of base and matching position relative to the screw lift's center
+		# supportBaseAngle = np.arctan2(supportBasePos[0], supportBasePos[1])
+		# supportMatchAngle = np.arctan2(supportMatchPos[0], supportMatchPos[1])
+		# leftSupportBaseAngle = np.arctan2(supportBasePos[0], -supportBasePos[1])
+
+		# for matchAngle in [supportMatchAngle, leftSupportBaseAngle]: # Cross supports between adjacent support columns
+		# 	supportPtCnt = LIFT_SUPPORT_CROSSES * LIFT_SUPPORT_SUBDIV
+		# 	supportPts = np.zeros((3, supportPtCnt), dtype=np.double)
+		# 	supportPts[2] = np.linspace(supportPath[2, 1], supportPath[2, -2], supportPtCnt)
+
+		# 	angleList = np.linspace(supportBaseAngle, matchAngle, LIFT_SUPPORT_SUBDIV) #+2*np.pi/PATH_COUNT
+		# 	for angleIdx in range(len(angleList)):
+		# 		fooAng = angleList[angleIdx]
+		# 		supportPts[0, angleIdx::len(angleList)] = np.sin(fooAng) * supportBaseDist
+		# 		supportPts[1, angleIdx::len(angleList)] = np.cos(fooAng) * supportBaseDist
+
+		# 	# Reverse every other crossing
+		# 	for flipIDx in range(LIFT_SUPPORT_SUBDIV, supportPtCnt-LIFT_SUPPORT_SUBDIV, LIFT_SUPPORT_SUBDIV*2):
+		# 		supportPts[:2, flipIDx:flipIDx+LIFT_SUPPORT_SUBDIV] = np.flip(supportPts[:2, flipIDx:flipIDx+LIFT_SUPPORT_SUBDIV], axis=1)
+
+			
+		# 	supportPts[0] -= SCREW_RAD
+
+		# 	outputGeometry += getShapePathSet(supportPts, None, railSphere)
+
+		# 	supportPts_right = deepcopy(supportPts)
+		# 	supportPts_right[1] *= -1
+		# 	outputGeometry += getShapePathSet(supportPts_right, None, railSphere)
+		
 	supportPoints = np.concatenate([supportPath[:, 1::2], supportPath_right[:, 1::2]], axis=1)
 	supportPoints[0] += SCREW_RAD
 	supportPoints = pf.doRotationMatrixes(supportPoints, [0, 0, angle])
@@ -541,19 +657,24 @@ def generateTrackFromPathSubdiv(path, rotations):
 			# Calculate how far into end positions we are
 			endStateFrac = interpolateEndStateFrac(idx)
 			# Get interpolated track offset, gradually increasing margin
-			trackOffset = getSupportOffset(TRACK_CONTACT_ANGLE*endStateFrac, trackSide, trackToPathDist+END_RAIL_GUIDE_MARGIN*(1.0-endStateFrac))
-
-			# print(f"{trackToPathDist+END_RAIL_GUIDE_MARGIN*(1.0-endStateFrac)} : {TRACK_CONTACT_ANGLE*endStateFrac}")
-
-			# Calculate angle of track
-			railRot = deepcopy(fooRot[:, idx])
-			# railRot[1] = endStateFrac*railRot[1]/2 + trackSide*(1.0-endStateFrac)*END_RAIL_GUIDE_TILT
-			railRot[1] = np.interp(
+			# trackOffset = getSupportOffset(TRACK_CONTACT_ANGLE*endStateFrac, trackSide, trackToPathDist+END_RAIL_GUIDE_MARGIN*(1.0-endStateFrac))
+			trackContact = np.interp(
 				endStateFrac,
 				[0.0, 1.0],
-				[trackSide*END_RAIL_GUIDE_TILT, railRot[1]/2]
+				[TRACK_CONTACT_ANGLE, END_RAIL_CONTACT_ANGLE]
 			)
+			trackOffset = getSupportOffset(trackContact, trackSide, trackToPathDist)
+
+			# Calculate actual angle of specific rail pieces
+			railRot = deepcopy(fooRot[:, idx])
+			# railRot[1] = endStateFrac*railRot[1]/2 + trackSide*(1.0-endStateFrac)*END_RAIL_GUIDE_TILT
+			# railRot[1] = np.interp(
+			# 	endStateFrac,
+			# 	[0.0, 1.0],
+			# 	[trackSide*END_RAIL_GUIDE_TILT, railRot[1]/2]
+			# )
 			
+			railRot[1] /= 2
 			# Actually update geometry
 			getRailPointAndAddSupport(fooPath, fooRot, idx, trackOffset, railRot, trackSide)
 			
@@ -574,16 +695,16 @@ def generateTrackFromPathSubdiv(path, rotations):
 
 			# Get interpolated track offset, starting not in contact and moving up
 			trackOffset = getSupportOffset(
-				np.interp(endStateFrac, [0.0, 1.0], [END_RAIL_CONTACT_ANGLE, TRACK_CONTACT_ANGLE]),
+				END_RAIL_GUIDE_CONTACT_ANGLE,
 				trackSide, 
-				trackToPathDist)
+				trackToPathDist + END_RAIL_GUIDE_MARGIN*(1.0+2*endStateFrac))
 			
 			# Set rotation to 0
 			railRot = deepcopy(fooRot[:, idx])
 			railRot[1] = np.interp(
 				endStateFrac,
 				[0.0, 1.0],
-				[0.0, railRot[1]/2]
+				[trackSide*END_RAIL_GUIDE_TILT, railRot[1]/2]
 			)
 
 			# Actually update geometry
@@ -595,8 +716,8 @@ def generateTrackFromPathSubdiv(path, rotations):
 			trackShapeSet 
 			)
 	
-	# # Add support to first bottom track point
-	# supportPoints.append(fooPath[:, -1])
+		# Add support to first guide rail track point
+		supportPoints.append(fooPath[:, -1])
 	
 	# for foo in supportPoints:
 	# 	tracks += sphere(1.5, _fn=16).translate(foo)

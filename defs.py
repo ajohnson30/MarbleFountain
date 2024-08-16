@@ -1,30 +1,44 @@
 import numpy as np
 import sys
 
+GENERATE_SUPPORTS = True # Actually generate supports
+HOLLOW_SUPPORTS = False # Hollow out supports (to put lights in)
+LED_CUTOUTS = False # Add cutouts to put LEDs in
+CONNECT_LIFTS = True
+SOLID_WALL_BETWEEN_LIFTS = False
+LOAD_EXISTING_PATH = True
+REALTIME_PLOTTING_FORCEMAGS = False # Plot path forces in real time
+SUPPORT_VIS = False # Output support gen visualization
 GLASS_MARBLE_14mm = False
-L_PRINT  = True
 
 
 
-# Overall size of box to generate path in
-SIZE_X = 180
-SIZE_Y = 100
-SIZE_Z = 100
-PT_DROP = 0.8    # target z drop per pt
-PATH_COUNT = 3 # Numer of paths to generate
-WORKING_DIR = 'proc/smallTest/'
+# # Overall size of box to generate path in
+# SIZE_X = 160
+# SIZE_Y = 100
+# SIZE_Z = 180
+# PT_DROP = 0.8    # target z drop per pt
+# PATH_COUNT = 4 # Numer of paths to generate
+# WORKING_DIR = 'proc/Print33/'
+# SCREW_RAD = 12 # Center of rotation to center of marble on track
+# SCREW_PITCH = 20 # mm per rev
+# LIFT_SUPPORT_PTS = 21
+# SOLID_WALL_BETWEEN_LIFTS = True
 
 
 # # SIZE_X = 315
 # # SIZE_Y = 185
 # # SIZE_Z = 270
 
-SIZE_X = 350 - 20
+SIZE_X = 350 - 50
 SIZE_Y = 200 - 20
 SIZE_Z = 353.28 - 50
 PT_DROP = 0.8    # target z drop per pt
 PATH_COUNT = 8 # Numer of paths to generate
-WORKING_DIR = 'proc/Print28/'
+WORKING_DIR = 'proc/Print34/'
+SCREW_RAD = 18 # Center of rotation to center of marble on track
+SCREW_PITCH = 24 # mm per rev
+LIFT_SUPPORT_PTS = 51
 
 
 # PT_DROP = 0.8    # target z drop per pt
@@ -61,7 +75,7 @@ RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterat
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 6 # How many random points to generate if LESS_RANDOM_INIT_PATH
+RANDOM_CNT = 10  # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay
@@ -80,6 +94,16 @@ PATH_RANDOMIZATION_FUNC = np.swapaxes([
     [200.0, 40.0, 0.5], # Max noise of 20
 ], 0, 1)
 
+
+PATH_RANDOMIZATION_FUNC = np.swapaxes([
+    [9.0, -10.0, 0.1],
+    [11.0, 0.0, 0.05],
+    [11.1, 1.0, 0.1],
+    [14.0, 2.0, 0.1],
+    [40.0, 15.0, 0.2],
+    [200.0, 40.0, 0.5], # Max noise of 20
+], 0, 1)
+
 # PATH_RANDOMIZATION_FUNC[0] *= 1.6
 # PATH_RANDOMIZATION_FUNC[0, 0] = 14
 
@@ -90,7 +114,7 @@ MARBLE_RAD = 6.3/2 # Radius of marble
 TRACK_RAD = 1.0 # Radius of standard marble support section
 
 TRACK_CONTACT_ANGLE = np.pi/5 # Angle between path and contact points4
-TRACK_MAX_TILT = np.pi/6 # Max angle of tilt for track
+TRACK_MAX_TILT = np.pi/5 # Max angle of tilt for track
 
 if GLASS_MARBLE_14mm:
     # PT_SPACING = 10.0
@@ -105,10 +129,11 @@ if GLASS_MARBLE_14mm:
 
 
 END_RAIL_PTS = 36 # How many points to start transitioning to final track
-END_RAIL_TRANSITION = 10 # How many points take to transition to the final track
-END_RAIL_GUIDE_TILT = np.pi/6 # What angle to tilt the guide rail geometry to for the end of the path
+END_RAIL_TRANSITION = 8 # How many points take to transition to the final track
+END_RAIL_CONTACT_ANGLE = np.pi/5 # Contact angle for base rail at the end of the path
+END_RAIL_GUIDE_CONTACT_ANGLE = -np.pi/4
+END_RAIL_GUIDE_TILT = np.pi/4 # What angle to tilt the guide rail geometry to for the end of the path
 END_RAIL_GUIDE_MARGIN = 0.5 # Additional tolerancing spacing of guide rails 
-END_RAIL_CONTACT_ANGLE = np.pi/3 # Contact angle for base rail at the end of the path
 END_RAIL_CONTACT_INIT_MARGIN = 0.5 # Additional spacing at start of initial base rail to help smooth transition
 
 
@@ -140,12 +165,7 @@ PATH_REPEL_DROP = MARBLE_RAD*2.0 # Drop points this far in Z from center of poin
 PULL_TO_CENTER_MAG = 0.2 # Magnitude of force pulling points to target radius
 PULL_TO_CENTER_MAXDIST = 10.0 # Distance at which to cap pull to target rad
 
-REALTIME_PLOTTING_FORCEMAGS = False
 
-GENERATE_SUPPORTS = True # Actually generate supports
-HOLLOW_SUPPORTS = False # Hollow out supports (to put lights in)
-LED_CUTOUTS = False # Add cutouts to put LEDs in
-SUPPORT_VIS = False # Output support gen visualization
 
 SUPPORT_SIZE_INTERP = np.swapaxes([
     [1, 1.2],
@@ -168,26 +188,22 @@ if not HOLLOW_SUPPORTS:
         [15, 3.0]
     ], 0, 1)
 
-CONNECT_LIFTS = True
-LIFT_SUPPORT_PTS = 51
 LIFT_SUPPORT_DIST = TRACK_RAD*3
 LIFT_SUPPORT_CROSSES = 16
 LIFT_SUPPORT_SUBDIV = 10
-LOAD_EXISTING_PATH = True
 
 # How many sides for each circle
 UNIVERSAL_FN = 6
 HIGHER_RES_FN = 10
 
-UNIVERSAL_FN = 12
+UNIVERSAL_FN = 18
 HIGHER_RES_FN = 50
 
 # Screw lift
-SCREW_RAD = 18 # Center of rotation to center of marble on track
-SCREW_PITCH = 24 # mm per rev
 SCREW_RESOLUTION = 30 # pts per rev
 SCREW_SUPPORT_GROUPING = (4, 9)
-SCREW_OUTER_TRACK_DIST = 0.5 # How far out to place the bottom rail
+SCREW_OUTER_TRACK_DIST = -0.25 # How far out to place the bottom rail
+SCREW_VERT_RAIL_MARGIN = 0.25 # Margin between bottom rail and vertical lift supports
 SCREW_TOP_PUSH_PTS = 15 # How many points at the top of the screw to push towards the outside
 
 
@@ -197,7 +213,6 @@ if GLASS_MARBLE_14mm:
 
 # Entry and exit connections
 END_PATH_OFFSET = MARBLE_RAD * (1 + np.sin(TRACK_CONTACT_ANGLE))
-SCREW_VERT_RAIL_MARGIN = -0.15 # Margin between bottom rail and vertical lift supports
 
 MOTOR_TYPE = 'SMALL_DC'
 MOTOR_TYPE = 'NEMA17'

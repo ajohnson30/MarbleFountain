@@ -47,8 +47,9 @@ for path, rot in zip(pathList, rotList):
 
 (outputAssembly).save_as_scad(WORKING_DIR + "test/tracks.scad")
 
+geometry, supportAnchors = generateScrewPathJoins(0.0)
+(geometry).save_as_scad(WORKING_DIR + "test/generateScrewPathJoin.scad")
 # exit()
-
 
 # Add path sections to support screw lift
 screwLoadAssembly = sphere(0)
@@ -102,7 +103,7 @@ if False:
 # Show screw and marble for example
 #.translateZ(-(MARBLE_RAD+TRACK_RAD) + BASE_OF_MODEL)
 rotatingScrew = generateCenterScrewRotatingPart()
-# rotatingScrew += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD)
+rotatingScrew += sphere(MARBLE_RAD, _fn=40).translateX(SCREW_RAD).rotateZ(45)
 rotatingScrew = rotatingScrew.translate(SCREW_POS)
 
 
@@ -122,7 +123,7 @@ if GENERATE_SUPPORTS:
 	supportGeometry = generateSupportsV2(supportColumns)
 else:
 	supportGeometry = sphere(0)
-# 	supportGeometry = getShapePathSet(supportPoints, None, sphere(1.5), returnIndividual=True)
+	# supportGeometry = getShapePathSet(supportPoints, None, sphere(1.5), returnIndividual=True)
 
 
 # Generate base plate connections
