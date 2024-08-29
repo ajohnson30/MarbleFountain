@@ -383,15 +383,19 @@ def generateScrewPathJoins(angle):
 	outputGeometry += getShapePathSet(legPath, None, railSphere)
 
 	# Add supports to vertical columns
-	minZ = np.min(topRailPath[2])
-	maxZ = np.max(railPath[2, :-1])
+	initDiff = 3
+	maxZ = np.min(topRailPath[2])
+	minZ = np.max(railPath[2, :-1])
 	supportPath = np.zeros((3, LIFT_SUPPORT_PTS))
 	supportPath[0, :] = railPath[0, -1]
 	supportPath[1, :] = railPath[1, -1]
-	supportPath[2, :] = np.linspace(minZ, maxZ, LIFT_SUPPORT_PTS) # Interpolate Z positions
+	
+	supportPath[2, :2] = (minZ, minZ+initDiff)
+	supportPath[2, -2:] = (maxZ-initDiff, maxZ)
+	supportPath[2, 2:-2] = np.linspace(minZ+2*initDiff, maxZ-2*initDiff, LIFT_SUPPORT_PTS-4) # Interpolate Z positions
 	supportPath[0, 1::2] += LIFT_SUPPORT_DIST
 
-	# Save, mirror, save
+	# # Save, mirror, save
 	outputGeometry += getShapePathSet(supportPath, None, railSphere)
 	outputGeometry += getShapePathSet(supportPath[:, 1::2], None, railSphere)
 	supportPath_right = deepcopy(supportPath)
@@ -399,6 +403,21 @@ def generateScrewPathJoins(angle):
 	outputGeometry += getShapePathSet(supportPath_right, None, railSphere)
 	outputGeometry += getShapePathSet(supportPath_right[:, 1::2], None, railSphere)
 
+
+	# Add internal rail
+	internalRailPath = deepcopy(supportPath[:, 1:-1])
+	internalRailPath[0, 1::2] = MARBLE_RAD
+	internalRailPath[1, 1::2] = 0
+
+	# # Save, mirror, save
+	outputGeometry += getShapePathSet(internalRailPath, None, railSphere)
+	outputGeometry += getShapePathSet(internalRailPath[:, 1::2], None, railSphere)
+	internalRailPathRight = deepcopy(internalRailPath)
+	internalRailPathRight[1] *= -1
+	outputGeometry += getShapePathSet(internalRailPathRight, None, railSphere)
+	outputGeometry += getShapePathSet(internalRailPathRight[:, 1::2], None, railSphere)
+	
+	
 	# Add supporting connections to adjacent path
 	if CONNECT_LIFTS:
 		# XYZ Position of this lifts support
@@ -415,9 +434,11 @@ def generateScrewPathJoins(angle):
 		leftSupportBaseAngle = np.arctan2(supportBasePos[0], -supportBasePos[1])
 
 		if SOLID_WALL_BETWEEN_LIFTS:
-			supportList = [leftSupportBaseAngle]
+			# supportList = [leftSupportBaseAngle]
+			supportList = []
 		else:
-			supportList = [supportMatchAngle, leftSupportBaseAngle]
+			# supportList = [supportMatchAngle, leftSupportBaseAngle]
+			supportList = [supportMatchAngle]
 		for matchAngle in supportList: # Cross supports between adjacent support columns
 			supportPtCnt = LIFT_SUPPORT_CROSSES * LIFT_SUPPORT_SUBDIV
 			supportPts = np.zeros((3, supportPtCnt), dtype=np.double)
@@ -497,49 +518,12 @@ def generateScrewPathJoins(angle):
 		fillGeometry = fillGeometry.translateX(-SCREW_RAD)
 
 		outputGeometry += fillGeometry
-		# for y, z in zip(yPts, zPts):
-		# 	outputGeometry += sphere(3).translate([xPt, y, z])
-		
-		# # XYZ Position of this lifts support
-		# supportBasePos = [vertRailDistFromSpiral+LIFT_SUPPORT_DIST+SCREW_RAD, vertRailSideOffset, 0]
-		# # XYZ Position of neighboring support
-		# supportMatchPos = pf.doRotationMatrixes([vertRailDistFromSpiral+SCREW_RAD+LIFT_SUPPORT_DIST, -vertRailSideOffset, 0], [0, 0, 2*np.pi/PATH_COUNT])
 
-		# # Get distance from center of to help space points
-		# supportBaseDist = np.linalg.norm(supportBasePos)
-		
-		# # Get angles of base and matching position relative to the screw lift's center
-		# supportBaseAngle = np.arctan2(supportBasePos[0], supportBasePos[1])
-		# supportMatchAngle = np.arctan2(supportMatchPos[0], supportMatchPos[1])
-		# leftSupportBaseAngle = np.arctan2(supportBasePos[0], -supportBasePos[1])
-
-		# for matchAngle in [supportMatchAngle, leftSupportBaseAngle]: # Cross supports between adjacent support columns
-		# 	supportPtCnt = LIFT_SUPPORT_CROSSES * LIFT_SUPPORT_SUBDIV
-		# 	supportPts = np.zeros((3, supportPtCnt), dtype=np.double)
-		# 	supportPts[2] = np.linspace(supportPath[2, 1], supportPath[2, -2], supportPtCnt)
-
-		# 	angleList = np.linspace(supportBaseAngle, matchAngle, LIFT_SUPPORT_SUBDIV) #+2*np.pi/PATH_COUNT
-		# 	for angleIdx in range(len(angleList)):
-		# 		fooAng = angleList[angleIdx]
-		# 		supportPts[0, angleIdx::len(angleList)] = np.sin(fooAng) * supportBaseDist
-		# 		supportPts[1, angleIdx::len(angleList)] = np.cos(fooAng) * supportBaseDist
-
-		# 	# Reverse every other crossing
-		# 	for flipIDx in range(LIFT_SUPPORT_SUBDIV, supportPtCnt-LIFT_SUPPORT_SUBDIV, LIFT_SUPPORT_SUBDIV*2):
-		# 		supportPts[:2, flipIDx:flipIDx+LIFT_SUPPORT_SUBDIV] = np.flip(supportPts[:2, flipIDx:flipIDx+LIFT_SUPPORT_SUBDIV], axis=1)
-
-			
-		# 	supportPts[0] -= SCREW_RAD
-
-		# 	outputGeometry += getShapePathSet(supportPts, None, railSphere)
-
-		# 	supportPts_right = deepcopy(supportPts)
-		# 	supportPts_right[1] *= -1
-		# 	outputGeometry += getShapePathSet(supportPts_right, None, railSphere)
-		
 	supportPoints = np.concatenate([supportPath[:, 1::2], supportPath_right[:, 1::2]], axis=1)
 	supportPoints[0] += SCREW_RAD
 	supportPoints = pf.doRotationMatrixes(supportPoints, [0, 0, angle])
+
+	# outputGeometry += sphere(MARBLE_RAD)
 
 	return(outputGeometry.translateX(SCREW_RAD).rotateZ(180.0*angle/np.pi), supportPoints)
 

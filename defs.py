@@ -13,32 +13,32 @@ GLASS_MARBLE_14mm = False
 
 
 
-# # Overall size of box to generate path in
-# SIZE_X = 160
-# SIZE_Y = 100
-# SIZE_Z = 180
-# PT_DROP = 0.8    # target z drop per pt
-# PATH_COUNT = 4 # Numer of paths to generate
-# WORKING_DIR = 'proc/Print33/'
-# SCREW_RAD = 12 # Center of rotation to center of marble on track
-# SCREW_PITCH = 20 # mm per rev
-# LIFT_SUPPORT_PTS = 21
-# SOLID_WALL_BETWEEN_LIFTS = True
-
+# Overall size of box to generate path in
+SIZE_X = 160
+SIZE_Y = 100
+SIZE_Z = 180
+PT_DROP = 0.8    # target z drop per pt
+PATH_COUNT = 4 # Numer of paths to generate
+WORKING_DIR = 'proc/Print35/'
+SCREW_RAD = 12 # Center of rotation to center of marble on track
+SCREW_PITCH = 20 # mm per rev
+LIFT_SUPPORT_PTS = 21
+SOLID_WALL_BETWEEN_LIFTS = True
 
 # # SIZE_X = 315
 # # SIZE_Y = 185
 # # SIZE_Z = 270
 
-SIZE_X = 350 - 50
-SIZE_Y = 200 - 20
-SIZE_Z = 353.28 - 50
-PT_DROP = 0.8    # target z drop per pt
-PATH_COUNT = 8 # Numer of paths to generate
-WORKING_DIR = 'proc/Print34/'
-SCREW_RAD = 18 # Center of rotation to center of marble on track
-SCREW_PITCH = 24 # mm per rev
-LIFT_SUPPORT_PTS = 51
+# SIZE_X = 350 - 50
+# SIZE_Y = 200 - 20
+# SIZE_Z = 353.28 - 50
+# PT_DROP = 0.8    # target z drop per pt
+# PATH_COUNT = 8 # Numer of paths to generate
+# WORKING_DIR = 'proc/Print36/'
+# SCREW_RAD = 18 # Center of rotation to center of marble on track
+# SCREW_PITCH = 24 # mm per rev
+# LIFT_SUPPORT_PTS = 51
+
 
 
 # PT_DROP = 0.8    # target z drop per pt
@@ -55,7 +55,7 @@ if len(sys.argv) > 1 and sys.argv[1] != '-reset':
     WORKING_DIR = sys.argv[1]
 
 
-BASE_OF_MODEL = -10 # Offset from 0 in Z to print main body off of
+BASE_OF_MODEL = -12 # Offset from 0 in Z to print main body off of
 BASE_THICKNESS = 6 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 6 # distance from one point to the next
