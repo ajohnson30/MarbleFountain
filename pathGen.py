@@ -181,7 +181,7 @@ for pathIteration in range(PATH_ITERS):
 
 
         # Pull towards bounding box
-        boundingBoxForceCurve = [[-10, 0, 5, 10], [0.0, 0.1, 5, 40.0]]
+        boundingBoxForceCurve = [[-10, 0, 5, 10], [0.0, 0.1, 5, 30.0]]
         boundingBoxForce = pushTowardsBoundingBox(path, BOUNDING_BOX, boundingBoxForceCurve, axCount=3)
         boundingBoxForce[np.abs(boundingBoxForce) > 0.1] *= scaleFactB
         path += boundingBoxForce * moveMult
@@ -450,8 +450,10 @@ for pathIteration in range(PATH_ITERS):
 
         # Make all paths equal if requested
         if MIRROR_PATHS:
-            for mirrorIdx in range(1, PATH_COUNT):
-                angle = getPathAnchorAngle(mirrorIdx) - getPathAnchorAngle(0)
+            for mirrorIdx in range(0, PATH_COUNT):
+                if mirrorIdx == pathIdx: 
+                    continue
+                angle = getPathAnchorAngle(mirrorIdx) - getPathAnchorAngle(pathIdx)
                 centeredPath = deepcopy(pathList[0])
                 centeredPath[0] -= SIZE_X/2
                 centeredPath[1] -= SIZE_Y/2
@@ -459,7 +461,6 @@ for pathIteration in range(PATH_ITERS):
                 rotPath[0] += SIZE_X/2
                 rotPath[1] += SIZE_Y/2
                 pathList[mirrorIdx] = rotPath
-            break
 
     # Print endline for logging
     print(' ')

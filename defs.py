@@ -13,31 +13,37 @@ GLASS_MARBLE_14mm = False
 
 
 
-# Overall size of box to generate path in
-SIZE_X = 160
-SIZE_Y = 100
-SIZE_Z = 180
-PT_DROP = 0.8    # target z drop per pt
-PATH_COUNT = 4 # Numer of paths to generate
-WORKING_DIR = 'proc/Print35/'
-SCREW_RAD = 12 # Center of rotation to center of marble on track
-SCREW_PITCH = 20 # mm per rev
-LIFT_SUPPORT_PTS = 21
-SOLID_WALL_BETWEEN_LIFTS = True
+# # Overall size of box to generate path in
+# SIZE_X = 160
+# SIZE_Y = 100
+# SIZE_Z = 180
+# PT_DROP = 0.8    # target z drop per pt
+# PATH_COUNT = 4 # Numer of paths to generate
+# WORKING_DIR = 'proc/Print36/'
+# SCREW_RAD = 12 # Center of rotation to center of marble on track
+# SCREW_PITCH = 20 # mm per rev
+# LIFT_SUPPORT_PTS = 21
+# SOLID_WALL_BETWEEN_LIFTS = True
 
 # # SIZE_X = 315
 # # SIZE_Y = 185
 # # SIZE_Z = 270
 
-# SIZE_X = 350 - 50
-# SIZE_Y = 200 - 20
-# SIZE_Z = 353.28 - 50
-# PT_DROP = 0.8    # target z drop per pt
-# PATH_COUNT = 8 # Numer of paths to generate
-# WORKING_DIR = 'proc/Print36/'
-# SCREW_RAD = 18 # Center of rotation to center of marble on track
-# SCREW_PITCH = 24 # mm per rev
-# LIFT_SUPPORT_PTS = 51
+SIZE_X = 350 - 50
+SIZE_Y = 200 - 20
+SIZE_Z = 353.28 - 50
+PT_DROP = 0.8    # target z drop per pt
+PATH_COUNT = 8 # Numer of paths to generate
+WORKING_DIR = 'proc/Print38/'
+SCREW_RAD = 18 # Center of rotation to center of marble on track
+SCREW_PITCH = 24 # mm per rev
+LIFT_SUPPORT_PTS = 51
+MIRROR_PATHS = False
+
+PT_DROP = 0.8    # target z drop per pt
+PATH_COUNT = 5
+WORKING_DIR = 'proc/Print39/'
+MIRROR_PATHS = True
 
 
 
@@ -64,7 +70,6 @@ INITIAL_POINT_MULT_SLOPE = 3.0*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
-MIRROR_PATHS = False
 if MIRROR_PATHS:
     SIZE_X = SIZE_Y
 

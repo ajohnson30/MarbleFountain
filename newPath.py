@@ -64,6 +64,13 @@ if 'SPIRAL' in sys.argv:
             [0.0, 0.3, np.pi*spiralCnt-0.4, np.pi*spiralCnt+0.4, np.pi*2*spiralCnt-0.3, np.pi*2*spiralCnt]
         ) + pathAngle
 
+
+        angles = np.interp(
+            np.linspace(0.0, 1.0, targetHeights.shape[0]),
+            [0.0, 1.0],
+            [0.0, np.pi*2*spiralCnt]
+        ) + pathAngle
+
         # angles = np.interp(
         #     np.linspace(0.0, 1.0, targetHeights.shape[0]),
         #     [0.0, 0.1, 0.9, 1.0],

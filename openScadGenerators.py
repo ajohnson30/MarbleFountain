@@ -196,8 +196,11 @@ def generateCenterScrewRotatingPart():
 	# Add cylinder to prevent slot hopping
 	slotCylinderRad = SCREW_RAD-MARBLE_RAD
 	slotCylinderHeight = 40
-	outputScrewSupports = cylinder(slotCylinderHeight, slotCylinderRad, slotCylinderRad, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	outputScrewSupports = cylinder(-BASE_OF_MODEL/2, 10.0, 10.0, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
+	outputScrewSupports += cylinder(-BASE_OF_MODEL/2, 10.0, slotCylinderRad, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL/2)
+	outputScrewSupports += cylinder(slotCylinderHeight+BASE_OF_MODEL, slotCylinderRad, slotCylinderRad, _fn=HIGHER_RES_FN)
 	outputScrewSupports += cylinder(5, slotCylinderRad, TRACK_RAD, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL + slotCylinderHeight)
+
 	outputScrewSupports += cylinder(maxSupportHeight-BASE_OF_MODEL, TRACK_RAD*2, TRACK_RAD*0.95, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 
 	# # Supports
@@ -212,7 +215,7 @@ def generateCenterScrewRotatingPart():
 		outputScrewSupports -= (cylinder(12, 1.5, 1.5, _fn=HIGHER_RES_FN) & cube([10, 10, 8]).translate([1.5-2.4, -5, 0])).translateZ(BASE_OF_MODEL-2)
 	elif MOTOR_TYPE == 'NEMA17':
 		# outputScrewSupports -= (cylinder(20.0, 2.55, 2.55, _fn=HIGHER_RES_FN) & cube([1.5, 2, 10]).translate([2.0, -1, 0])).translateZ(BASE_OF_MODEL-2)
-		outputScrewSupports -= (cylinder(20.0, 2.55, 2.55, _fn=HIGHER_RES_FN)).translateZ(BASE_OF_MODEL-2)
+		outputScrewSupports -= (cylinder(40.0, 2.55, 2.55, _fn=HIGHER_RES_FN)).translateZ(BASE_OF_MODEL-2)
 		outputScrewSupports += cube([2, 2, 10]).translate([2.2, -1, BASE_OF_MODEL]).rotateZ(30) # Keyed shaft
 
 	# MarblePath for viz
@@ -406,7 +409,7 @@ def generateScrewPathJoins(angle):
 
 	# Add internal rail
 	internalRailPath = deepcopy(supportPath[:, 1:-1])
-	internalRailPath[0, 1::2] = MARBLE_RAD
+	internalRailPath[0, 1::2] = MARBLE_RAD + TRACK_RAD
 	internalRailPath[1, 1::2] = 0
 
 	# # Save, mirror, save
