@@ -33,17 +33,17 @@ SIZE_X = 350 - 50
 SIZE_Y = 200 - 20
 SIZE_Z = 353.28 - 50
 PT_DROP = 0.8    # target z drop per pt
-PATH_COUNT = 8 # Numer of paths to generate
-WORKING_DIR = 'proc/Print38/'
+PATH_COUNT = 6 # Number of paths to generate
+WORKING_DIR = 'proc/Print39/'
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
 LIFT_SUPPORT_PTS = 51
 MIRROR_PATHS = False
 
-PT_DROP = 0.8    # target z drop per pt
-PATH_COUNT = 5
-WORKING_DIR = 'proc/Print39/'
-MIRROR_PATHS = True
+# PT_DROP = 0.8    # target z drop per pt
+# PATH_COUNT = 5
+# WORKING_DIR = 'proc/Print39/'
+# MIRROR_PATHS = True
 
 
 
