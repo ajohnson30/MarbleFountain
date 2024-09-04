@@ -10,31 +10,32 @@ LOAD_EXISTING_PATH = True
 REALTIME_PLOTTING_FORCEMAGS = False # Plot path forces in real time
 SUPPORT_VIS = False # Output support gen visualization
 GLASS_MARBLE_14mm = False
+MIRROR_PATHS = False
 
 
 
-# # Overall size of box to generate path in
-# SIZE_X = 160
-# SIZE_Y = 100
-# SIZE_Z = 180
-# PT_DROP = 0.8    # target z drop per pt
-# PATH_COUNT = 4 # Numer of paths to generate
-# WORKING_DIR = 'proc/Print36/'
-# SCREW_RAD = 12 # Center of rotation to center of marble on track
-# SCREW_PITCH = 20 # mm per rev
-# LIFT_SUPPORT_PTS = 21
+# Overall size of box to generate path in
+SIZE_X = 160
+SIZE_Y = 100
+SIZE_Z = 180
+PT_DROP = 0.8    # target z drop per pt
+PATH_COUNT = 3 # Numer of paths to generate
+WORKING_DIR = 'proc/Print40/'
+SCREW_RAD = 12 # Center of rotation to center of marble on track
+SCREW_PITCH = 20 # mm per rev
+LIFT_SUPPORT_PTS = 21
 # SOLID_WALL_BETWEEN_LIFTS = True
 
 # # SIZE_X = 315
 # # SIZE_Y = 185
 # # SIZE_Z = 270
 
-SIZE_X = 350 - 50
+SIZE_X = 350 - 20
 SIZE_Y = 200 - 20
-SIZE_Z = 353.28 - 50
-PT_DROP = 0.8    # target z drop per pt
+SIZE_Z = 353.28 - 70    
+PT_DROP = 0.7    # target z drop per pt
 PATH_COUNT = 6 # Number of paths to generate
-WORKING_DIR = 'proc/Print39/'
+WORKING_DIR = 'proc/Print41/'
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
 LIFT_SUPPORT_PTS = 51
@@ -80,7 +81,7 @@ RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterat
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 10  # How many random points to generate if LESS_RANDOM_INIT_PATH
+RANDOM_CNT = 6  # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay

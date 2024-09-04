@@ -610,7 +610,7 @@ def calculatePathRotations(path, screwJoinAngle=None):
 	pointSlopesStandardized = (PT_DROP - np.diff(path[2])) / PT_SPACING
 
 	# Convert slope at each point into a multiplier
-	pointSlopes *= -2
+	pointSlopes *= -3
 	pointSlopes -= np.min(pointSlopes)
 	slopeMagAtPoint = pointSlopes / np.average(pointSlopes)
 	slopeMagAtPoint += 0.5
@@ -632,7 +632,7 @@ def calculatePathRotations(path, screwJoinAngle=None):
 	slopeConv = smoothByPrevN(slopeConv, 3)
 
 	# Get initial, raw tilt
-	tilt = -changeInAngle*2
+	tilt = -changeInAngle*3
 
 	# # Set beginning and ending points to flat
 	# tilt[:LOCKED_PT_CNT-3] = 0.0

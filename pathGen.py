@@ -164,6 +164,7 @@ for pathIteration in range(PATH_ITERS):
             scaleFactA = np.interp(pathTempList[pathIdx], [0.0, 2.0, 5.0], [0.0, 0.1, 1.0])
             scaleFactB = np.interp(pathTempList[pathIdx], [2.0, 10.0, 15.0], [1.0, 0.1, 0.05])
             scaleFactC = np.interp(pathTempList[pathIdx], [-0.5, 0.0, 2.0], [1.0, 0.6, 0.0])
+            scaleFactD = np.interp(pathTempList[pathIdx], [-9.0, -7.5], [1.0, 0.0])
         else:
             scaleFactB = 1.0
             scaleFactC = 1.0
@@ -273,19 +274,26 @@ for pathIteration in range(PATH_ITERS):
         
         curvAdjustMag = np.max([curvatureFlipMag, slopeSharpnessMag*0.4], axis=0)
 
-        curvAdjustMag *= scaleFactC
+        curvAdjustMag *= scaleFactB
         
         pathAngleForceSum = np.zeros_like(path)
-        if scaleFactB > 0: addToPathAndSums(scaleFactB*update_path_curvature(path, 25.0, 1e6, 0.1, 1.5, offset=1), path, pathAngleForceSum, moveMult)
-        addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 40+50*curvAdjustMag+1e6*scaleFactC, 0.05, 1.5, offset=2), path, pathAngleForceSum, moveMult)
-        addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 40+50*curvAdjustMag+1e6*scaleFactC, 0.05, 1.5, offset=3), path, pathAngleForceSum, moveMult)
-        if scaleFactA > 0: addToPathAndSums(scaleFactA*update_path_curvature(path, 30.0, 1e6, 0.02, 3.0, offset=4), path, pathAngleForceSum, moveMult)
+        # if scaleFactB > 0: addToPathAndSums(scaleFactB*update_path_curvature(path, 25.0, 1e6, 0.1, 1.5, offset=1), path, pathAngleForceSum, moveMult)
+        # addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 40+50*curvAdjustMag+1e6*scaleFactC, 0.05, 1.5, offset=2), path, pathAngleForceSum, moveMult)
+        # addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag, 40+50*curvAdjustMag+1e6*scaleFactC, 0.05, 1.5, offset=3), path, pathAngleForceSum, moveMult)
+        # if scaleFactA > 0: addToPathAndSums(scaleFactA*update_path_curvature(path, 30.0, 1e6, 0.02, 3.0, offset=4), path, pathAngleForceSum, moveMult)
 
-        if scaleFactB > 0:
-            # basePathAngleForce = scaleFactB*update_path_curvature(path, 30.0, 1e6, 0.2, 10.0, offset=2)
-            basePathAngleForce = scaleFactB*correctPathAngle(path, 3.0, 3.1, 1.0+3.0*scaleFactC, diffPointOffsetCnt=1)
-            basePathAngleForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] = 0.0
-            addToPathAndSums(basePathAngleForce, path, pathAngleForceSum, moveMult)
+        # if scaleFactB > 0:
+        #     # basePathAngleForce = scaleFactB*update_path_curvature(path, 30.0, 1e6, 0.2, 10.0, offset=2)
+        #     basePathAngleForce = scaleFactB*correctPathAngle(path, 3.0, 3.1, 1.0+3.0*scaleFactC, diffPointOffsetCnt=1)
+        #     basePathAngleForce[:, LOCKED_PT_CNT:-LOCKED_PT_CNT] = 0.0
+        #     addToPathAndSums(basePathAngleForce, path, pathAngleForceSum, moveMult)
+
+
+        addToPathAndSums(scaleFactB*update_path_curvature(path, 25.0+1e4*scaleFactD, 1e6, 0.1, 1.5, offset=1), path, pathAngleForceSum, moveMult)
+        addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag+1e4*scaleFactD, 40+50*curvAdjustMag+1e6*scaleFactA, 0.1, 1.5, offset=2), path, pathAngleForceSum, moveMult)
+        # addToPathAndSums(update_path_curvature(path, 25+30*curvAdjustMag+1e4*scaleFactD, 40+50*curvAdjustMag+1e6*scaleFactA, 0.1, 1.5, offset=3), path, pathAngleForceSum, moveMult)
+        # addToPathAndSums(scaleFactA*update_path_curvature(path, 30.0+1e4*scaleFactD, 1e6, 0.02, 3.0, offset=4), path, pathAngleForceSum, moveMult)
+
 
         forceList.append(pathAngleForceSum)
 
