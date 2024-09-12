@@ -669,8 +669,26 @@ def calculatePathRotations(path, screwJoinAngle=None):
 		currTilts[:2] = 0
 		currTilts[-2:] = 0
 
+	# Find distance to path orientation flipping
+	turnSign = -np.ones_like(changeInAngle, dtype=np.int8)
+	turnSign[changeInAngle > 0.0] = 1
+	flipDist = distance_to_sign_change(turnSign)
+	
+	flipDistMag = flipDist/ 3
+	flipDistMag[flipDistMag > 1.0] = 1.0
+	
+
+	# # plt.plot(turnSign)
+	# plt.plot(flipDistMag)
+	# plt.plot(changeInAngle)
+	# plt.show()
+	# exit()
+
+
 	# Multiply by slopeConv
-	currTilts = smoothByNextN(deepcopy(currTilts), 3)*slopeConv*2
+	# currTilts = smoothByNextN(deepcopy(currTilts), 3)*slopeConv*2
+	
+	currTilts = smoothByNextN(deepcopy(currTilts*flipDistMag), 3)*slopeConv*2
 
 	# Limit max rotation
 	currTilts = np.clip(currTilts, -TRACK_MAX_TILT, TRACK_MAX_TILT)

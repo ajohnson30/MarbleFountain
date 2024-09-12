@@ -177,7 +177,7 @@ elif 'SOLVE' in sys.argv:
 
             randPath[idx] = np.array(randPts)
         
-        targDist = 0.3*PT_SPACING * (POINT_COUNT / RANDOM_CNT)
+        targDist = 0.5*PT_SPACING * (POINT_COUNT / RANDOM_CNT)
         # targDist = 20
         print(f"targDist:{targDist}")
         SOLVE_ITERATIONS = 100

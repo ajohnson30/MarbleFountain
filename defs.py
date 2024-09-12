@@ -25,21 +25,24 @@ SCREW_RAD = 12 # Center of rotation to center of marble on track
 SCREW_PITCH = 20 # mm per rev
 LIFT_SUPPORT_PTS = 21
 # SOLID_WALL_BETWEEN_LIFTS = True
+RANDOM_CNT = 6  # How many random points to generate if LESS_RANDOM_INIT_PATH
+
 
 # # SIZE_X = 315
 # # SIZE_Y = 185
 # # SIZE_Z = 270
 
 SIZE_X = 350 - 20
-SIZE_Y = 200 - 20
-SIZE_Z = 353.28 - 70    
-PT_DROP = 0.7    # target z drop per pt
-PATH_COUNT = 6 # Number of paths to generate
-WORKING_DIR = 'proc/Print41/'
+SIZE_Y = 200 - 25
+SIZE_Z = 353.28 - 50
+PT_DROP = 0.55    # target z drop per pt
+PATH_COUNT = 5 # Number of paths to generate
+WORKING_DIR = 'proc/Print44/'
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
 LIFT_SUPPORT_PTS = 51
 MIRROR_PATHS = False
+RANDOM_CNT = 15  # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # PT_DROP = 0.8    # target z drop per pt
 # PATH_COUNT = 5
@@ -67,7 +70,7 @@ BASE_THICKNESS = 6 # Offset from 0 in Z to print main body off of
 
 PT_SPACING = 6 # distance from one point to the next
 
-INITIAL_POINT_MULT_SLOPE = 3.0*PT_DROP
+INITIAL_POINT_MULT_SLOPE = 5.0*PT_DROP
 POINT_COUNT = int(np.floor(SIZE_Z / PT_DROP)) # Total number of path points
 if POINT_COUNT%2 == 0: POINT_COUNT += 1
 
@@ -81,7 +84,6 @@ RESAMPLE_AT = [] # Resample the path to alleviate knots at this number of iterat
 APPLY_FORCES_SEPARATELY = True
 SET_ITERATION_MOVE_DISTS = False # Move all points by same distance which gradually decreases (instead of by force)
 LESS_RANDOM_INIT_PATH = True # Generate initial paths by interpolating between a few random paths (instead of randomizing every point)
-RANDOM_CNT = 6  # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 # Path randomization
 #   Based on max force mag, calculates temperature and temp decay
@@ -139,7 +141,7 @@ END_RAIL_TRANSITION = 8 # How many points take to transition to the final track
 END_RAIL_CONTACT_ANGLE = np.pi/5 # Contact angle for base rail at the end of the path
 END_RAIL_GUIDE_CONTACT_ANGLE = -np.pi/4
 END_RAIL_GUIDE_TILT = np.pi/4 # What angle to tilt the guide rail geometry to for the end of the path
-END_RAIL_GUIDE_MARGIN = 0.5 # Additional tolerancing spacing of guide rails 
+END_RAIL_GUIDE_MARGIN = 1.2 # Additional tolerancing spacing of guide rails 
 END_RAIL_CONTACT_INIT_MARGIN = 0.5 # Additional spacing at start of initial base rail to help smooth transition
 
 
