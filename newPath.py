@@ -185,6 +185,7 @@ elif 'SOLVE' in sys.argv:
             boundingBoxForceCurve = [[-10, 0, 5, 10], [0.0, 0.1, 5, 30.0]]
             pathForce = normalizePathDists(randPath, targDist, iter/SOLVE_ITERATIONS, maxForce = 5.0, pointOffset = 1, dropZ = True)
             pathForce += (iter/SOLVE_ITERATIONS) * pushTowardsBoundingBox(randPath, BOUNDING_BOX, boundingBoxForceCurve, axCount=3)
+            pathForce += correctPathAngle(randPath, 1.5, 3.14, 5, 20)
             randPath[:, 1:-1] += pathForce[:, 1:-1]
 
 

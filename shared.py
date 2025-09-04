@@ -50,7 +50,10 @@ def randomPath(ptCnt, box, pathIdx):
 
 def getPathAnchorAngle(pathIdx):
 	angle = np.pi*2*pathIdx/PATH_COUNT
-	if PATH_COUNT%2 == 0: angle += np.pi/(PATH_COUNT)
+	if PATH_COUNT%2 == 0: 
+		angle += np.pi/(PATH_COUNT)
+	if PATH_COUNT==5:
+		angle += np.pi/4
 	return angle
 
 # Pull towards bounding box

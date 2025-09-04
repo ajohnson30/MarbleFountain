@@ -123,8 +123,16 @@ def generateCenterScrewRotatingPart():
 	# return(innerRail + outerRail + linear_extrude(0.01)(circle(MARBLE_RAD, _fn=10)).rotate([90, 0, 90])) # Display profile
 	BASE_POS_DROP = MARBLE_RAD/2
 	# Generate height and angle of path at all points
-	zPos = np.arange(-BASE_POS_DROP, SIZE_Z+MARBLE_RAD*2.5, SCREW_PITCH/SCREW_RESOLUTION)
-	angle = zPos/SCREW_PITCH*2*np.pi
+	screwBaseHeight = -BASE_POS_DROP
+	screwTopHeight = SIZE_Z+MARBLE_RAD
+	screwPointCount = np.ceil(((screwTopHeight) - (screwBaseHeight)) / (SCREW_PITCH/SCREW_RESOLUTION))
+	zPos = np.arange(screwPointCount, dtype=np.double) / screwPointCount
+	zPos = np.interp(zPos, *np.swapaxes([
+		[0.0, screwBaseHeight],
+		[1.0 - (SCREW_RESOLUTION/2)/screwPointCount, screwTopHeight],
+	], 0, 1))
+
+	angle = np.arange(screwBaseHeight, screwTopHeight, SCREW_PITCH/SCREW_RESOLUTION)/SCREW_PITCH*2*np.pi
 	# zPos += np.sin(zPos*0.7)*1 # Subtely vary Z height to add interest
 	# zPos -= zOffsetOfSupportingRail # Lift all points slightly
 
@@ -420,7 +428,33 @@ def generateScrewPathJoins(angle):
 	outputGeometry += getShapePathSet(internalRailPathRight, None, railSphere)
 	outputGeometry += getShapePathSet(internalRailPathRight[:, 1::2], None, railSphere)
 	
+	# Save, mirror, save
+	def saveMirrorSave(inPts, railSphere):
+		pathGeometry = getShapePathSet(deepcopy(inPts), None, railSphere)
+		mirrorPts = deepcopy(inPts)
+		mirrorPts[1] *= -1
+		pathGeometry += getShapePathSet(mirrorPts, None, railSphere)
+		return pathGeometry
+
+	# Add ring at back rail point to prevent jamming
+	def generateInletRing(distFromCenter):
+		INLET_RING_PTS = 10
+		inletRingHeight = INITIAL_POINT_MULT_SLOPE * ((distFromCenter)/(PT_SPACING*2)) # Expected slope / fraction of distance to point
+		inletRingAngles = np.linspace(-np.pi/2, np.pi/2, INLET_RING_PTS)
+		inletRingPts = np.zeros((3, INLET_RING_PTS+2))
+		inletRingPts[0] = distFromCenter
+		inletRingPts[1, 1:-1] = np.cos(inletRingAngles)*(netRad + END_RAIL_GUIDE_MARGIN)
+		inletRingPts[2, 1:-1] = np.sin(inletRingAngles)*(netRad + END_RAIL_GUIDE_MARGIN) + inletRingHeight
+
+		inletRingPts[2, 0] = BASE_OF_MODEL
+		inletRingPts[2, -1] = netRad + END_RAIL_GUIDE_MARGIN+8 # Join top of ring to start of internal rail on lift
+		inletRingPts[0, -1] = netRad
+		return inletRingPts
 	
+	for dist in np.linspace(netRad, PT_SPACING*2, 4):
+		outputGeometry += saveMirrorSave(generateInletRing(dist), railSphere)
+
+
 	# Add supporting connections to adjacent path
 	if CONNECT_LIFTS:
 		# XYZ Position of this lifts support
@@ -454,7 +488,7 @@ def generateScrewPathJoins(angle):
 				supportPts[1, angleIdx::len(angleList)] = np.cos(fooAng) * supportBaseDist
 
 			# Reverse every other crossing
-			for flipIDx in range(LIFT_SUPPORT_SUBDIV, supportPtCnt-LIFT_SUPPORT_SUBDIV, LIFT_SUPPORT_SUBDIV*2):
+			for flipIDx in range(LIFT_SUPPORT_SUBDIV, supportPtCnt-LIFT_SUPPORT_SUBDIV+LIFT_SUPPORT_SUBDIV*2, LIFT_SUPPORT_SUBDIV*2):
 				supportPts[:2, flipIDx:flipIDx+LIFT_SUPPORT_SUBDIV] = np.flip(supportPts[:2, flipIDx:flipIDx+LIFT_SUPPORT_SUBDIV], axis=1)
 
 			
@@ -1195,21 +1229,22 @@ def generateSupportsV2(supportCols):
 			supportCols[nextIdx].mergingInto = idx
 
 	# Smooth supports
-	smoothCols = deepcopy(supportCols)
-	for idx in range(len(supportCols)):
-		nextCol = supportCols[idx]
-		if nextCol.mergingInto == -1:
-			continue
-		# Smooth out support
-		mergeCol = supportCols[nextCol.mergingInto]
-		netPosHist = np.swapaxes(np.concatenate([np.array(nextCol.posHist), np.array(mergeCol.posHist)]), 0, 1)
-		# netPosHist = np.swapaxes(nextCol.posHist, 0, 1)
+	if SMOOTH_SUPPORTS:
+		smoothCols = deepcopy(supportCols)
+		for idx in range(len(supportCols)):
+			nextCol = supportCols[idx]
+			if nextCol.mergingInto == -1:
+				continue
+			# Smooth out support
+			mergeCol = supportCols[nextCol.mergingInto]
+			netPosHist = np.swapaxes(np.concatenate([np.array(nextCol.posHist), np.array(mergeCol.posHist)]), 0, 1)
+			# netPosHist = np.swapaxes(nextCol.posHist, 0, 1)
 
-		for ii in range(2):
-			netPosHist[ii] = hamming_filter_1d(netPosHist[ii], 15)
-		smoothCols[idx].posHist = np.swapaxes(netPosHist, 0, 1)[:len(nextCol.posHist)]
+			for ii in range(2):
+				netPosHist[ii] = hamming_filter_1d(netPosHist[ii], 15)
+			smoothCols[idx].posHist = np.swapaxes(netPosHist, 0, 1)[:len(nextCol.posHist)]
 
-	supportCols = smoothCols
+		supportCols = smoothCols
 
 	# Iterate through all base columns
 	for fooCol in supportCols:

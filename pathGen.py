@@ -289,9 +289,9 @@ for pathIteration in range(PATH_ITERS):
         #     addToPathAndSums(basePathAngleForce, path, pathAngleForceSum, moveMult)
 
 
-        addToPathAndSums(scaleFactB*update_path_curvature(path, 25.0+1e4*scaleFactD, 1e6, 0.1, 1.5, offset=1), path, pathAngleForceSum, moveMult)
-        addToPathAndSums(update_path_curvature(path, 50+30*curvAdjustMag+1e4*scaleFactD, 40+50*curvAdjustMag+1e6*scaleFactA, 0.1, 1.5, offset=2), path, pathAngleForceSum, moveMult)
-        addToPathAndSums(update_path_curvature(path, 50+30*curvAdjustMag+1e4*scaleFactD, 30+50*curvAdjustMag+1e6*scaleFactA, 0.1, 1.5, offset=3), path, pathAngleForceSum, moveMult)
+        addToPathAndSums(scaleFactB*update_path_curvature(path, 50.0, 1e6, 0.1, 1.5, offset=1), path, pathAngleForceSum, moveMult)
+        addToPathAndSums(scaleFactB*update_path_curvature(path, (40+30*curvAdjustMag)*scaleFactC, 50+50*curvAdjustMag+50*scaleFactD, 0.1, 1.5, offset=2), path, pathAngleForceSum, moveMult)
+        addToPathAndSums(scaleFactB*update_path_curvature(path, (30+30*curvAdjustMag)*scaleFactC, 40+50*curvAdjustMag+50*scaleFactD, 0.1, 1.5, offset=3), path, pathAngleForceSum, moveMult)
         # addToPathAndSums(scaleFactA*update_path_curvature(path, 30.0+1e4*scaleFactD, 1e6, 0.02, 3.0, offset=4), path, pathAngleForceSum, moveMult)
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 
-GENERATE_SUPPORTS = True # Actually generate supports
+GENERATE_SUPPORTS = False # Actually generate supports
 HOLLOW_SUPPORTS = False # Hollow out supports (to put lights in)
 LED_CUTOUTS = False # Add cutouts to put LEDs in
 CONNECT_LIFTS = True
@@ -11,6 +11,7 @@ REALTIME_PLOTTING_FORCEMAGS = False # Plot path forces in real time
 SUPPORT_VIS = False # Output support gen visualization
 GLASS_MARBLE_14mm = False
 MIRROR_PATHS = False
+SMOOTH_SUPPORTS = True # Smooth support geometry to 
 
 
 
@@ -20,9 +21,9 @@ SIZE_Y = 100
 SIZE_Z = 180
 PT_DROP = 0.8    # target z drop per pt
 PATH_COUNT = 3 # Numer of paths to generate
-WORKING_DIR = 'proc/Print40/'
+WORKING_DIR = 'proc/test/'
 SCREW_RAD = 12 # Center of rotation to center of marble on track
-SCREW_PITCH = 20 # mm per rev
+SCREW_PITCH = 40 # mm per rev
 LIFT_SUPPORT_PTS = 21
 # SOLID_WALL_BETWEEN_LIFTS = True
 RANDOM_CNT = 6  # How many random points to generate if LESS_RANDOM_INIT_PATH
@@ -37,12 +38,15 @@ SIZE_Y = 200 - 25
 SIZE_Z = 353.28 - 50
 PT_DROP = 0.55    # target z drop per pt
 PATH_COUNT = 5 # Number of paths to generate
-WORKING_DIR = 'proc/Print44/'
+WORKING_DIR = 'proc/Print45/'
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
 LIFT_SUPPORT_PTS = 51
 MIRROR_PATHS = False
 RANDOM_CNT = 15  # How many random points to generate if LESS_RANDOM_INIT_PATH
+
+WORKING_DIR = 'proc/screwTest/'
+PT_DROP = 0.6    # target z drop per pt
 
 # PT_DROP = 0.8    # target z drop per pt
 # PATH_COUNT = 5
@@ -107,7 +111,7 @@ PATH_RANDOMIZATION_FUNC = np.swapaxes([
     [9.0, -10.0, 0.1],
     [11.0, 0.0, 0.05],
     [11.1, 1.0, 0.1],
-    [14.0, 2.0, 0.1],
+    [16.0, 2.0, 0.1],
     [40.0, 15.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20
 ], 0, 1)
