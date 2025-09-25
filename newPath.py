@@ -42,6 +42,13 @@ targetHeights[startPoints:-startPoints] = (SIZE_Z - 2*startAndEndOffset)*np.inte
 ) + startAndEndOffset
 
 
+# Generation options are 
+# 'SPIRAL'
+# 'BETTER'
+# 'SOLVE'
+# 'WIDE'
+# 'HOURGLASS'
+
 # Generate initial path
 if 'SPIRAL' in sys.argv:
     spiralCnt = 3
@@ -242,14 +249,99 @@ elif 'WIDE' in sys.argv:
             else:
                 randPts = np.linspace(SIZE_Z, 0, RANDOM_CNT+2)
 
-
-
             path[idx] = np.interp(np.linspace(0, RANDOM_CNT+1, POINT_COUNT), np.arange(RANDOM_CNT+2), randPts)
             path[idx] += 0.5 - np.random.random(len(path[idx]))
         
         # path[2, :] = targetHeights
         pathList.append(path)
                 
+# Generate better starting points maybe
+elif 'HOURGLASS' in sys.argv:
+    pathList = []
+
+    RANDOM_CNT *= 2
+
+    for pathIdx in range(PATH_COUNT):
+        path = np.zeros((3, POINT_COUNT), dtype=np.double)
+        angle = getPathAnchorAngle(pathIdx)
+
+        # Sort of random points
+        randPointSet = np.zeros((3, RANDOM_CNT+2), dtype=np.double)
+        for idx in range(3):
+            if idx < 2:
+                randPts = np.random.random(RANDOM_CNT+2)
+
+                # Random points only in outside 1/4 of bounding box
+                boxFrac = 1/4
+
+                randPts *= BOUNDING_BOX[idx] * boxFrac
+                randPts[np.where(randPts > BOUNDING_BOX[idx] * boxFrac/2)] += BOUNDING_BOX[idx] * boxFrac
+                # Loop setting the start and end positions + preventing double crossings
+                for ii in range(10):
+                    # Do not cross center and back instantly
+                    randPts[1:-1] = np.where(
+                        (randPts[2:]-BOUNDING_BOX[idx]/2)*(randPts[:-2]-BOUNDING_BOX[idx]/2) < 0, 
+                        randPts[1:-1],
+                        np.random.random(RANDOM_CNT)*BOUNDING_BOX[idx], 
+                    )
+
+
+                    # Squish into hourglass shape kinda
+                    hourglassSkipFrace = 0.15
+                    waistMult = 0.3
+
+                    subsetStart = int(RANDOM_CNT*hourglassSkipFrace)+1
+                    subsetEnd = int(RANDOM_CNT*(1.0-hourglassSkipFrace))+1
+                    print(f"subsetStart:{subsetStart}")
+                    print(f"subsetEnd:{subsetEnd}")
+                    randPts[subsetStart:subsetEnd] = (randPts[subsetStart:subsetEnd] - (BOUNDING_BOX[idx]/2)) * waistMult + BOUNDING_BOX[idx]/2
+
+
+                    # Set first and last point
+                    if idx == 0:
+                        startPos = np.cos(angle)*(SCREW_RAD + PT_SPACING) + BOUNDING_BOX[idx]/2
+                        pos2 = np.cos(angle)*(SCREW_RAD + PT_SPACING*20) + BOUNDING_BOX[idx]/2
+                    elif idx == 1:
+                        startPos = np.sin(angle)*(SCREW_RAD + PT_SPACING) + BOUNDING_BOX[idx]/2
+                        pos2 = np.sin(angle)*(SCREW_RAD + PT_SPACING*20) + BOUNDING_BOX[idx]/2
+                    
+                    randPts[0] = startPos
+                    randPts[1] = pos2
+                    randPts[-1] = startPos
+                    randPts[-2] = pos2
+
+            # idx = 3, load set heights
+            else:
+                randPts = np.linspace(SIZE_Z, 0, RANDOM_CNT+2)
+            randPointSet[idx] = randPts
+
+        # All random points are calculated
+        pathDists = np.sqrt(np.sum(np.power(np.diff(randPointSet[:2], axis=1), 2), axis=0))
+        # invPathDists = np.max(pathDists) - pathDists
+        pathLen = np.cumsum(pathDists)
+        pathLen = np.concatenate([[0], pathLen])
+        randPointSet[2] = np.interp(pathLen, [0, pathLen[-1]], [SIZE_Z, 0])
+
+        # plt.plot(randPointSet[2], randPointSet[0])
+        # plt.scatter(randPointSet[2], randPointSet[0])
+
+        # for idx in range(3):
+        #     path[idx] = np.interp(np.linspace(0, RANDOM_CNT+1, POINT_COUNT), np.arange(RANDOM_CNT+2), randPointSet[idx])
+        #     path[idx] += 0.5 - np.random.random(len(path[idx]))
+
+        path[2] = np.linspace(SIZE_Z, 0, POINT_COUNT)
+        randPointSet = randPointSet[:, np.argsort(randPointSet[2])]
+        for idx in range(2):
+            path[idx] = np.interp(path[2], randPointSet[2], randPointSet[idx])
+        
+
+        # plt.plot(path[2], path[0])
+        # plt.show()
+        # exit()
+        # plt.scatter(path[2], pathDists, s=3)
+
+        # path[2, :] = targetHeights
+        pathList.append(path)
 
 
 else:
@@ -260,5 +352,10 @@ else:
         path[2, :] = targetHeights
         pathList.append(path)
 
+
+print(f"Saving to {WORKING_DIR} {pathList}")
 pkl.dump(pathList, open(WORKING_DIR+'path.pkl', 'wb'))
 pkl.dump(pathList, open(WORKING_DIR+'PathDump/000000.pkl', 'wb'))
+
+
+# plt.show()

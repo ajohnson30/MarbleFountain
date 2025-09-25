@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 
-GENERATE_SUPPORTS = False # Actually generate supports
+GENERATE_SUPPORTS = True # Actually generate supports
 HOLLOW_SUPPORTS = False # Hollow out supports (to put lights in)
 LED_CUTOUTS = False # Add cutouts to put LEDs in
 CONNECT_LIFTS = True
@@ -37,7 +37,7 @@ SIZE_X = 350 - 20
 SIZE_Y = 200 - 25
 SIZE_Z = 353.28 - 50
 PT_DROP = 0.55    # target z drop per pt
-PATH_COUNT = 5 # Number of paths to generate
+PATH_COUNT = 8 # Number of paths to generate
 WORKING_DIR = 'proc/Print45/'
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
@@ -45,8 +45,8 @@ LIFT_SUPPORT_PTS = 51
 MIRROR_PATHS = False
 RANDOM_CNT = 15  # How many random points to generate if LESS_RANDOM_INIT_PATH
 
-WORKING_DIR = 'proc/screwTest/'
-PT_DROP = 0.6    # target z drop per pt
+WORKING_DIR = 'FinalDemo/'
+PT_DROP = 0.85    # target z drop per pt
 
 # PT_DROP = 0.8    # target z drop per pt
 # PATH_COUNT = 5
@@ -109,8 +109,8 @@ PATH_RANDOMIZATION_FUNC = np.swapaxes([
 
 PATH_RANDOMIZATION_FUNC = np.swapaxes([
     [9.0, -10.0, 0.1],
-    [11.0, 0.0, 0.05],
-    [11.1, 1.0, 0.1],
+    [12.0, 0.0, 0.05],
+    [12.1, 1.0, 0.1],
     [16.0, 2.0, 0.1],
     [40.0, 15.0, 0.2],
     [200.0, 40.0, 0.5], # Max noise of 20

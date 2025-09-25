@@ -203,7 +203,7 @@ def generateCenterScrewRotatingPart():
 
 	# Add cylinder to prevent slot hopping
 	slotCylinderRad = SCREW_RAD-MARBLE_RAD
-	slotCylinderHeight = 40
+	slotCylinderHeight = screwTopHeight
 	outputScrewSupports = cylinder(-BASE_OF_MODEL/2, 10.0, 10.0, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL)
 	outputScrewSupports += cylinder(-BASE_OF_MODEL/2, 10.0, slotCylinderRad, _fn=HIGHER_RES_FN).translateZ(BASE_OF_MODEL/2)
 	outputScrewSupports += cylinder(slotCylinderHeight+BASE_OF_MODEL, slotCylinderRad, slotCylinderRad, _fn=HIGHER_RES_FN)
