@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 
-GENERATE_SUPPORTS = True # Actually generate supports
+GENERATE_SUPPORTS = False # Actually generate supports
 HOLLOW_SUPPORTS = False # Hollow out supports (to put lights in)
 LED_CUTOUTS = False # Add cutouts to put LEDs in
 CONNECT_LIFTS = True
