@@ -1,14 +1,14 @@
 import numpy as np
 import sys
 
-GENERATE_SUPPORTS = False # Actually generate supports
+GENERATE_SUPPORTS = True # Actually generate supports
 HOLLOW_SUPPORTS = False # Hollow out supports (to put lights in)
 LED_CUTOUTS = False # Add cutouts to put LEDs in
 CONNECT_LIFTS = True
 SOLID_WALL_BETWEEN_LIFTS = False
 LOAD_EXISTING_PATH = True
 REALTIME_PLOTTING_FORCEMAGS = False # Plot path forces in real time
-SUPPORT_VIS = False # Output support gen visualization
+SUPPORT_VIS = True # Output support gen visualization
 GLASS_MARBLE_14mm = False
 MIRROR_PATHS = False
 SMOOTH_SUPPORTS = True # Smooth support geometry to 
@@ -21,7 +21,6 @@ SIZE_Y = 100
 SIZE_Z = 180
 PT_DROP = 0.8    # target z drop per pt
 PATH_COUNT = 3 # Numer of paths to generate
-WORKING_DIR = 'proc/test/'
 SCREW_RAD = 12 # Center of rotation to center of marble on track
 SCREW_PITCH = 40 # mm per rev
 LIFT_SUPPORT_PTS = 21
@@ -38,7 +37,6 @@ SIZE_Y = 200 - 25
 SIZE_Z = 353.28 - 50
 PT_DROP = 0.55    # target z drop per pt
 PATH_COUNT = 8 # Number of paths to generate
-WORKING_DIR = 'proc/Print45/'
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
 LIFT_SUPPORT_PTS = 51

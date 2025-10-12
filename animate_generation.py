@@ -4,7 +4,7 @@ from solid2.extensions.bosl2 import circle, cuboid, sphere, cylinder, \
 									heightfield, diff, tag, attach, \
 									TOP, BOTTOM, CTR, metric_screws, rect, glued_circles, \
 									chain_hull, conv_hull, hull, cube, union, trapezoid, teardrop, skin, sweep
-from solid2.core import linear_extrude
+from solid2.core import linear_extrude, scad_render_to_file
 
 import numpy as np
 from copy import deepcopy
@@ -36,68 +36,9 @@ def makeScadFile(input_paths, file_path):
         outputAssembly += tracks
         pathSupportPoints += [np.swapaxes(supports, 0, 1)]
 
-
-    geometry, supportAnchors = generateScrewPathJoins(0.0)
-    # exit()
-
-    # Add path sections to support screw lift
-    screwLoadAssembly = sphere(0)
-    screwLoadSupportAnchors = []
-    for pathIdx in range(PATH_COUNT):
-        angle = getPathAnchorAngle(pathIdx)
-        geometry, supportAnchors = generateScrewPathJoins(angle)
-        screwLoadAssembly += geometry
-        screwLoadSupportAnchors.append(supportAnchors+SCREW_POS[:, None])
-    screwLoadAssembly = screwLoadAssembly.translate(SCREW_POS)
-
-    # Get list of all points which require support
-    # supportAnchors = [calculateSupportAnchorsForPath(path[:, ::2], rot[:, ::2]) for path, rot in zip(pathList, rotList)]
-
-    supportPoints = np.concatenate([*pathSupportPoints, *screwLoadSupportAnchors], axis=1)
-
-    # Get list of all no-go points
-    noGoPoints = np.concatenate([path for path in pathList], axis=1) # Do not subdivide
-    # noGoPoints = np.concatenate([subdividePath(path) for path in pathList], axis=1) # Subdivide to get intermediate points
-    noGoPoints[2] -= PATH_REPEL_DROP # Repel away only upwards at 45 degree angle
-
-    # supportAnchorPointsConcat = np.concatenate([anchors for anchors in supportAnchors], axis=1) # get concat supportAnchors
-
-    # Calculate lift exclusion zone
-    liftNoGoRad = SCREW_RAD
-    liftNoGoZ = np.arange(BASE_OF_MODEL, SIZE_Z, 0.55555)
-    centerPoints = np.array([liftNoGoZ, liftNoGoZ, liftNoGoZ])
-    centerPoints[0, :] = SIZE_X/2 + liftNoGoRad*np.cos(liftNoGoZ)
-    centerPoints[1, :] = SIZE_Y/2 + liftNoGoRad*np.sin(liftNoGoZ)
-
-    liftNoGoPtCnt = 20
-    liftTrackNogo = np.zeros((3, liftNoGoPtCnt*PATH_COUNT))
-    for pathIdx in range(PATH_COUNT):
-        angle = getPathAnchorAngle(pathIdx)
-        liftTrackNogo[0, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.cos(angle)*(SCREW_RAD + MARBLE_RAD) + SCREW_POS[0]
-        liftTrackNogo[1, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.sin(angle)*(SCREW_RAD + MARBLE_RAD) + SCREW_POS[1]
-        liftTrackNogo[2, liftNoGoPtCnt*(pathIdx):liftNoGoPtCnt*(pathIdx+1)] = np.linspace(0, SIZE_Z, liftNoGoPtCnt)
-
-    noGoPoints = np.concatenate([noGoPoints, centerPoints, liftTrackNogo], axis=1)
-
-    # Add path of marble in 3d to check for intersections
-    marblePathGeometry = sphere(0)
-    for fooPath in pathList: marblePathGeometry += getShapePathSet(fooPath, np.zeros_like(fooPath), sphere(MARBLE_RAD))
-
-    # Generate supports
-    if GENERATE_SUPPORTS:
-        visPath = None
-
-        supportColumns = calculateSupports(supportPoints, noGoPoints, visPath)
-
-        supportGeometry = generateSupportsV2(supportColumns)
-    else:
-        supportGeometry = sphere(0)
-        # supportGeometry = getShapePathSet(supportPoints, None, sphere(1.5), returnIndividual=True)
-
-    print(f"Saving to {file_path}")
-    (screwLoadAssembly + outputAssembly + supportGeometry).save_as_scad(file_path)
-
-
+    (outputAssembly).save_as_scad(file_path)
+    print(f"Saved to {file_path}")
+    return
 
 # OpenSCAD camera args for reference
 #   --camera arg                      camera parameters when exporting png: 
@@ -118,23 +59,62 @@ def makeScadFile(input_paths, file_path):
 #   --csglimit arg                    =n -stop rendering at n CSG elements when 
 #                                     exporting png
 
-
-def convertScadFile(png_path, scad_path):
+def convertScadFile(png_path, scad_path, camera_args):
     cmd =  f"~/install/OpenSCAD.AppImage"
     cmd += f" --enable=fast-csg" 
-    cmd += f" -o ./{scad_path}"
+    cmd += f" -o ./{png_path}"
     cmd += f" --export-format png"
-    cmd += f" --preview=throwntogether"
-    cmd += f" {png_path}"
-    sp.Popen(cmd, shell=True).wait()
+    cmd += f" --colorscheme DeepOcean" # I like this one on vibes
+    cmd += f" --camera {camera_args}"
+    # cmd += f" --view wireframe"
+    cmd += f" --imgsize=1920,1080"
+    cmd += f" {scad_path}"
+    sp.Popen(cmd, shell=True, stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w')).wait()
     print(f"Ran {cmd}")
 
 
+
+def runBoth(input_path, scad_path, png_path, camera_args):
+    makeScadFile(input_path, scad_path)
+    convertScadFile(png_path, scad_path, camera_args)
+
 print(f"Initializing output directories")
 
-path_folder = Path('FinalDemo_sparse') / 'PathDump'
-# path_folder = Path('FinalDemoV3') / 'PathDump'
+path_folder = Path('FinalDemo') / 'PathDump'
 
+if False:
+    path_folder = Path('FinalDemo_8_track_v2') / 'PathDump'
+    path_inflections = [
+        0,
+        474,
+        1068,
+        1774,
+        2369,
+        2937,
+        4170,
+        5404,
+        # 6249,
+        6295,
+    ]
+
+    path_inflections = [
+        0,
+        474,
+        1068,
+        1774,
+        2369,
+        2937,
+        3600,
+        4170,
+        4800,
+        5404,
+        6000,
+        # 6249,
+        6295,
+    ]
+
+# Pure inflection points 474,1068,1774,2369,2937,4170,5404,
+# Start of real convergence 6249
 
 output_folder = Path('vis_3d')
 
@@ -152,18 +132,141 @@ paths = np.array(paths)
 
 # Paths indexing is (iteration #, path #, XYZ, point #)
 
+path_centers = [np.average(paths[:, :, i, :]) for i in range(3)]
+
+import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
+
+def rolling_average_axis0(arr, window_size):
+    # Create sliding windows along axis 0
+    windowed = sliding_window_view(arr, window_shape=window_size, axis=0)
+    # Compute mean along the window dimension (last axis)
+    return np.mean(windowed, axis=-1)
+
+if False: # Downsample paths
+    paths = np.concatenate([
+        paths[:100],
+        paths[100:200][::5],
+        paths[200::20],
+        ])
+
+rolling_avg = rolling_average_axis0(paths, window_size=30)
+paths = rolling_avg
+
+if False: # Resample to fixed frame count
+    frame_count = 8*30
+    new_path_pts = np.zeros((frame_count, paths.shape[1], paths.shape[2], paths.shape[3]))
+    for pathIdx in range(paths.shape[1]):
+        for axisIdx in range(paths.shape[2]):
+            for ptIdx in range(paths.shape[3]):
+                new_path_pts[:, pathIdx, axisIdx, ptIdx] = np.interp(frame_count, np.linspace(0.0, 1.0, len(paths[:, pathIdx, axisIdx, ptIdx])), paths[:, pathIdx, axisIdx, ptIdx])
+    paths = new_path_pts
+
+
+# Plot update rate over time
+if False:
+    print(paths.shape)
+    diffs = np.diff(paths, axis=0)
+    diffs = np.abs(diffs)
+    for i in range(3):
+        diffs = np.average(diffs, axis=1)
+        print(diffs.shape)
+    plt.style.use('dark_background')
+
+    if True:
+        plt.plot(diffs)
+        plt.show()
+        exit()
+    else:
+        plt.plot(np.linspace(0, 1.0, len(diffs)), diffs)
+        plt.vlines(np.array(path_inflections) / path_inflections[-1], 0, 1)
+
+# Interpolate to run on beat
+frame_rate = 30
+if False:
+    step_duration = 0.78125 * 2
+    # step_duration = 0.5
+    frame_count = int(frame_rate*step_duration * (len(path_inflections) - 1))
+
+    print(f"frame_count:{frame_count}")
+    print(f"run_duration S:{frame_count/frame_rate}")
+
+    frame_indices = np.arange(frame_count)
+    inflection_frame_indices = np.linspace(0, path_inflections[-1], paths.shape[0])
+
+    # Get interpolation pairs to equalize input
+    frame_iteration_sample_points = np.interp(
+        inflection_frame_indices,
+        path_inflections,
+        np.linspace(0.0, frame_count, len(path_inflections)),
+    )
+
+    new_path_pts = np.zeros((frame_count, paths.shape[1], paths.shape[2], paths.shape[3]))
+    for pathIdx in range(paths.shape[1]):
+        for axisIdx in range(paths.shape[2]):
+            for ptIdx in range(paths.shape[3]):
+                new_path_pts[:, pathIdx, axisIdx, ptIdx] = np.interp(frame_indices, frame_iteration_sample_points, paths[:, pathIdx, axisIdx, ptIdx])
+
+    paths = new_path_pts
+
+# Plot update rate over time
+if False:
+    print(paths.shape)
+    diffs = np.diff(paths, axis=0)
+    diffs = np.abs(diffs)
+    for i in range(3):
+        diffs = np.average(diffs, axis=1)
+        print(diffs.shape)
+    # plt.plot(np.linspace(0, 1.0, len(diffs)), diffs)
+    plt.plot(diffs)
+    plt.show()
+    exit()
+
 # Reduce path len for testing
-# paths = paths[:100]
+# paths = paths[::2]
+
 
 
 # Camera args are translate_x,y,z,rot_x,y,z,dist
 camera_args = np.zeros((7, len(paths)))
 
+# Aim for center of paths consistently across all schots
+for i in range(3): camera_args[i] = path_centers[i]
+camera_args[6] = 900.0
 
+# Reasonable fixed angle
+# camera_args[3] = 75
 
+# Camera go spinny weeee
+# camera_args[3] = np.linspace(0.0, 70.0, len(paths))
+camera_args[3] = np.interp(
+    np.linspace(0.0, 1.0, len(paths)),
+    [0.0, 1.0],
+    [30.0, 80.0]
+)
+camera_args[5] = np.linspace(0.0, 360.0*3.0, len(paths))
 
+# # Noise jumps at 836 & 1734
+# camera_args[3] = np.interp(
+#     np.arange(len(paths)),
+#     [0.0, 836, len(paths)],
+#     [0.0, 60.0, 70.0]
+# )
 
+# camera_args[5] = np.interp(
+#     np.arange(len(paths)),
+#     [0.0, 836, len(paths)],
+#     [0.0, 360.0*1.5, 360.0*3]
+# )
 
+# Only print final frame
+if False:
+    paths = paths[-1:]
+    camera_args = camera_args[:, -1:]
+
+# make camera args into csv separated string
+camera_args = [",".join([str(bar) for bar in foo]) for foo in camera_args.swapaxes(0,1)]
+for foo in camera_args: print(foo)
 
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
@@ -173,26 +276,24 @@ print(f"Starting pool executor on {cpu_count} cores")
 with ProcessPoolExecutor(max_workers=cpu_count) as executor:
     print(f"Making SCAD files")
     scad_paths = [output_folder / 'scad' / f"{idx:06d}.scad" for idx in range(len(paths))]
-    # results = list(executor.map(makeScadFile, paths, scad_paths))
-    
-    print(f"Making pngs")
     png_paths = [output_folder / 'png' / f"{idx:06d}.png" for idx in range(len(paths))]
-    results = list(executor.map(convertScadFile, scad_paths, png_paths))
+    results = list(executor.map(runBoth, paths, scad_paths, png_paths, camera_args))
 
+print("Joining into video")
+compile_vid_command = f"ffmpeg -framerate {frame_rate} -pattern_type glob -i \"{str(output_folder / 'png' / '*.png')}\" -c:v libx264 -crf 18 -pix_fmt yuv420p {str(output_folder/"animation.mp4")}"
+# ffmpeg -framerate 30 -pattern_type glob -i "vis/*.png" -c:v libx264 -crf 18 -pix_fmt yuv420p "animation.mp4"
+sp.Popen(compile_vid_command, shell=True).wait()
+print(f"Finished, vid build with {compile_vid_command}")
 
+# ffmpeg -framerate 30 -pattern_type glob -i "png/*.png" -c:v libx264 -crf 18 -pix_fmt yuv420p "test_animation.mp4"
 
-
-
-
-
-
-
-
-
-# Plot update rate over time
+# Example renders for each color scheme
 if False:
-    diffs = np.diff(paths, axis=0)
-    diffs = np.abs(diffs)
-    for i in range(3): diffs = np.average(diffs, axis=1)
-    plt.plot(diffs)
-    plt.show()
+    for foo in ["Cornfield","Metallic","Sunset","Starnight","BeforeDawn","Nature","DeepOcean","Solarized","Tomorrow","Tomorrow","Night","ClearSky","Monotone"]:
+        cmd =  f"~/install/OpenSCAD.AppImage"
+        cmd += f" --enable=fast-csg" 
+        cmd += f" -o ./{output_folder / (foo+'.png')}"
+        cmd += f" --colorscheme {foo}"
+        cmd += f" --export-format png"
+        cmd += f" {output_folder / "scad" / "000000.scad"}"
+        sp.Popen(cmd, shell=True).wait()

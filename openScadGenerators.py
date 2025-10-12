@@ -1040,7 +1040,7 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 
 			circleRad = 0.5
 			for fooPt in currentColumns:
-				circleRad = getColumnRad(fooPt.size)
+				circleRad = getColumnRad(fooPt.size)*2
 				# drawline = (fooPt.currPos[0]*imScale-circleRad, fooPt.currPos[1]*imScale-circleRad, fooPt.prevPos[0]*imScale+circleRad, fooPt.prevPos[1]*imScale+circleRad)
 				# plotDraw.line(drawline, fill=currentColor, width=5)
 		
@@ -1054,11 +1054,11 @@ def calculateSupports(anchorPts, avoidPts, visPath=None):
 				if zDiff < 0: continue
 
 				colMag = 1.0 - np.clip((zDiff - Z_DIFF_MIN) / (Z_DIFF_MAX - Z_DIFF_MIN), 0.0, 1.0)
-				circleRad = 1
+				circleRad = 2
 				drawEllipse = (fooPt[0]*imScale-circleRad, fooPt[1]*imScale-circleRad, fooPt[0]*imScale+circleRad, fooPt[1]*imScale+circleRad)
 				plotDraw.ellipse(drawEllipse, fill=(50+int(205*colMag), 0, 0), width=5)
 				
-			plotImage.save(f"{visPath}/layer_{layerIdx}.png")
+			plotImage.save(f"{visPath}/layer_{str(layerIdx).rjust(8, '0')}.png")
 
 	# Save all current columns to be export
 	completeColumns += currentColumns
