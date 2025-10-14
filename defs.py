@@ -36,14 +36,14 @@ SIZE_X = 350 - 20
 SIZE_Y = 200 - 25
 SIZE_Z = 353.28 - 50
 PT_DROP = 0.55    # target z drop per pt
-PATH_COUNT = 8 # Number of paths to generate
+PATH_COUNT = 4 # Number of paths to generate
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
 LIFT_SUPPORT_PTS = 51
 MIRROR_PATHS = False
 RANDOM_CNT = 15  # How many random points to generate if LESS_RANDOM_INIT_PATH
 
-WORKING_DIR = 'FinalDemo/'
+WORKING_DIR = 'output/'
 PT_DROP = 0.85    # target z drop per pt
 
 # PT_DROP = 0.8    # target z drop per pt
