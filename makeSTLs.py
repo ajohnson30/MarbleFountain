@@ -16,7 +16,10 @@ for f in files:
 
         # if 'Screw' not in of: continue
 
-        cmd = f"~/install/OpenSCAD.AppImage --enable=fast-csg  -o ./{WORKING_DIR}/fast_{of} --export-format binstl ./{WORKING_DIR}/{f}"
+        # *** Execute windows OpenSCAD here - if multi-threading option found, please add
+        cmd = f"/progra~1/OpenSCAD/OpenSCAD  -o ./{WORKING_DIR}/fast_{of} --export-format binstl ./{WORKING_DIR}/{f}"
+        
+        # cmd = f"~/install/OpenSCAD.AppImage --enable=fast-csg  -o ./{WORKING_DIR}/fast_{of} --export-format binstl ./{WORKING_DIR}/{f}"
         # cmd = f"~/install/OpenSCAD.AppImage -o ./{WORKING_DIR}/fast_{of} --export-format binstl ./{WORKING_DIR}/{f}"
         print(cmd)
         tasks.append(sp.Popen(cmd, shell=True))
