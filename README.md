@@ -5,6 +5,21 @@ This is a slightly modified repository of Will Morrisons Marble Fountain project
 I was able to run it several times in Win11 on a 12600H cpu - a 250x250x250 sized run with 6 tracks took just under 119 hours.
 OpenSCAD appears to only run single-threaded.  If I could figure out how to run it multi-threaded it would speed up immensely.
 
+Requirements:
+I used python v3.13.5 - the idea is to use a stable release.  Once you have that, the python code requires the following modules:
+  scipy, matplotlib, solidpython2, stl, numpy-stl --- note: (numpy-stl was only required in windows, under linux it didnt seem to be needed )
+
+I installed them using "pip" which should be obvious, but in a cmd window:
+  pip install scipy
+  pip install matplotlib
+  pip install solidpython2
+  pip install stl
+  pip install numpy-stl
+
+You also need OpenSCAD from https://openscad.org/downloads.html - I installed the 64-bit version for windows
+Make sure you can type/paste "\progra~1\openscad\openscad --help" in a command-line once it is installed, or you will
+have to fix the path in MakeSTLs.py to the proper location for openscad.exe!
+
 Original README follows (more or less):
 
 This is a repository of code to procedurally generate large complex organic marble runs. 
