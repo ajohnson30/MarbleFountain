@@ -13,55 +13,22 @@ GLASS_MARBLE_14mm = False
 MIRROR_PATHS = False
 SMOOTH_SUPPORTS = True # Smooth support geometry to 
 
-
-
 # Overall size of box to generate path in
-SIZE_X = 160
-SIZE_Y = 100
-SIZE_Z = 180
+SIZE_X = 250
+SIZE_Y = 200
+SIZE_Z = 250
 PT_DROP = 0.8    # target z drop per pt
-PATH_COUNT = 3 # Numer of paths to generate
-SCREW_RAD = 12 # Center of rotation to center of marble on track
-SCREW_PITCH = 40 # mm per rev
-LIFT_SUPPORT_PTS = 21
-# SOLID_WALL_BETWEEN_LIFTS = True
-RANDOM_CNT = 6  # How many random points to generate if LESS_RANDOM_INIT_PATH
+PATH_COUNT = 6 # Numer of paths to generate
 
-
-# # SIZE_X = 315
-# # SIZE_Y = 185
-# # SIZE_Z = 270
-
-SIZE_X = 350 - 20
-SIZE_Y = 200 - 25
-SIZE_Z = 353.28 - 50
-PT_DROP = 0.55    # target z drop per pt
-PATH_COUNT = 4 # Number of paths to generate
 SCREW_RAD = 18 # Center of rotation to center of marble on track
 SCREW_PITCH = 24 # mm per rev
+
 LIFT_SUPPORT_PTS = 51
-MIRROR_PATHS = False
+# SOLID_WALL_BETWEEN_LIFTS = True
+
 RANDOM_CNT = 15  # How many random points to generate if LESS_RANDOM_INIT_PATH
 
 WORKING_DIR = 'output/'
-PT_DROP = 0.85    # target z drop per pt
-
-# PT_DROP = 0.8    # target z drop per pt
-# PATH_COUNT = 5
-# WORKING_DIR = 'proc/Print39/'
-# MIRROR_PATHS = True
-
-
-
-# PT_DROP = 0.8    # target z drop per pt
-# PATH_COUNT = 8 # Numer of paths to generate
-# GLASS_MARBLE_14mm = True
-# SIZE_X = 320 - 20
-# SIZE_Y = 200 - 40
-# SIZE_Z = 353.28 - 65
-# WORKING_DIR = 'proc/Print29_GlassMarble/'
-
-
 
 if len(sys.argv) > 1 and sys.argv[1] != '-reset':
     WORKING_DIR = sys.argv[1]
